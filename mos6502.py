@@ -62,7 +62,7 @@ class Processor:
         self.program_counter = 0xfce2  # Hardcoded start vector post-reset
         self.stack_pointer = 0x01fd  # Hardcoded stack pointer post-reset
         self.cycles = 0
-        self.flag_i = True
+        self.flag_i = False
         self.flag_d = False
         self.flag_b = False
         self.flag_c = False
@@ -173,17 +173,21 @@ class Processor:
 
     def ins_adc(self, mode):
         ''' Add with carry '''
-        if addr == 'imm':
+        self.flag_c = bool(int(format(self.reg_a, '#010b')[2]))
+        if mode == 'imm': # cycles 2
             self.reg_a += self.fetch_byte()
-        elif addr == 'zp':
+        elif mode == 'zp': # cycles 5
+            self.cycles += 2
             self.reg_a += self.read_byte(self.fetch_byte())
         else:
             print(f"Unknown mode {mode}")
             self.flag_b = True
-        
-        self.check(self.reg_a, 'carry', 'zero', 'neg')
-        if self.flag_c:
-            self.reg_a -= 0x100
+        self.flag_z = bool(not self.reg_a)
+        self.flag_n = bool(int(format(self.reg_a, '#010b')[2]))
+
+        #self.check(self.reg_a, 'carry', 'zero', 'neg')
+        #if self.flag_c:
+        #    self.reg_a -= 0x100
 
     def ins_asl(self, mode):
         ''' Arithmetic shift left '''
@@ -367,7 +371,7 @@ cpu.reset()
 cpu.program_counter = 0x0600
 
 
-mem = load(mem, 0x0000, [0xa9, 0x80, 0x0a])
+mem = load(mem, 0x0000, [0xa9, 0x40, 0x69, 0x08])
 cpu = Processor(mem)
 cpu.reset()
 cpu.program_counter = 0x0000

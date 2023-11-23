@@ -150,20 +150,26 @@ class Processor:
     ]
 
     def exec(self, cycles: int = 0):
+        opcode = self.fetch_byte()
+        print("self.ins_" + self.OPCODES[opcode] +
+              "(\"" + self.ADDRESSING[opcode] + "\")")
+        eval("self.ins_" + self.OPCODES[opcode] +
+             "(\"" + self.ADDRESSING[opcode] + "\")")
+        '''
         while (self.cycles < cycles) or (cycles == 0):
             # print(
             #    f"Register A: {self.reg_a}. Clock cycles: {self.cycles}. Program counter: {self.program_counter}")
-            # print(f"Clock cycles: {self.cycles}")
             # input()
             if self.flag_b:
                 break
             # q = self.cycles
             opcode = self.fetch_byte()
-            # print("self.ins_" + self.OPCODES[opcode] +
-            #      "(\"" + self.ADDRESSING[opcode] + "\")")
+            print("self.ins_" + self.OPCODES[opcode] +
+                  "(\"" + self.ADDRESSING[opcode] + "\")")
             eval("self.ins_" + self.OPCODES[opcode] +
                  "(\"" + self.ADDRESSING[opcode] + "\")")
             # print(f"Cost: {self.cycles-q}")
+        '''
 
     def ins_adc(self, mode):
         ''' Add with carry '''
@@ -235,8 +241,8 @@ class Processor:
         ''' Jump to subroutine '''
         if mode == 'abs':  # Costs 6
             self.cycles += 1
-            self.write_word(self.stack_pointer, self.program_counter-0x01)
-            self.stack_pointer -= 0x01
+            self.write_word(self.stack_pointer-0x01, self.program_counter-0x01)
+            self.stack_pointer -= 0x02
             self.program_counter = self.fetch_word()
         else:
             print(f"Unknown mode {mode}")
@@ -271,7 +277,6 @@ class Processor:
         elif mode == 'abs':
             self.cycles += 1
             self.reg_a = self.reg_a | self.fetch_word()
-
         else:
             print(f"Unknown mode {mode}")
             self.flag_b = True
@@ -282,8 +287,11 @@ class Processor:
     def ins_rol(self, mode):
         ''' Rotate bits to the left '''
         if mode == 'acc':
-            # self.reg_a = self_reg_a << 1
-
+            tmp = int(format(self.reg_a, '#010b')[2])
+            self.reg_a = self.reg_a << 1
+            self.reg_a += tmp
+            self.flag_z = bool(not self.reg_a)
+            self.flag_n = bool(int(format(self.reg_a, '#010b')[2]))
         else:
             print(f"Unknown mode {mode}")
             self.flag_b = True
@@ -293,7 +301,7 @@ class Processor:
         self.cycles += 3
         if mode == 'imp':
             self.program_counter = self.read_word(self.stack_pointer)
-            self.stack_pointer += 0x01
+            self.stack_pointer += 0x02
         else:
             print(f"Unknown mode {mode}")
             self.flag_b = True
@@ -339,6 +347,7 @@ def load(bank, address, program):
     return bank
 
 
+'''
 mem = Memory()
 # Load Snake
 mem = load(mem, 0x0600, [0x20, 0x06, 0x06, 0x20, 0x38, 0x06, 0x20, 0x0d, 0x06, 0x20, 0x2a, 0x06, 0x60, 0xa9, 0x02, 0x85,
@@ -366,13 +375,13 @@ cpu = Processor(mem)
 cpu.reset()
 cpu.program_counter = 0x0600
 
-# mem = load(mem, 0x0000, [0xa9, 0xff, 0x0a])
+# mem = load(mem, 0x0000, [0xa9, 0x50, 0x2a])
 # cpu = Processor(mem)
 # cpu.reset()
 # cpu.program_counter = 0x0000
 
 
-cpu.exec(0)
+cpu.exec()
 
 print(hex(cpu.reg_a))
 print(hex(cpu.reg_x))
@@ -380,3 +389,4 @@ print(hex(cpu.reg_y))
 print("N V B D I Z C")
 print(int(cpu.flag_n), int(cpu.flag_v), int(cpu.flag_b), int(
     cpu.flag_d), int(cpu.flag_i), int(cpu.flag_z), int(cpu.flag_c))
+'''

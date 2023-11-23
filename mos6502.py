@@ -10,6 +10,7 @@ __email__ = "brinch.c@gmail.com"
 
 import sys
 
+
 class Memory:
     ''' Memory for the MOS-6502 '''
 
@@ -55,7 +56,6 @@ class Processor:
         self.flag_v = True  # Status flag - Overflow Flag
         self.flag_n = True  # Status flag - Negative Flag
 
-
     def reset(self):
         ''' Reset processor. Program counter is initialized to FCE2 and 
             stack counter to 01FD. '''
@@ -89,7 +89,7 @@ class Processor:
 
     def write_word(self, address: int, value: int) -> None:
         ''' Split a word to two bytes and write to memory. '''
-        
+
         if sys.byteorder == "little":
             self.write_byte(address, value & 0xFF)
             self.write_byte(address + 1, (value >> 8) & 0xFF)
@@ -151,67 +151,66 @@ class Processor:
 
     def exec(self, cycles: int = 0):
         while (self.cycles < cycles) or (cycles == 0):
-            print(f"Register A: {self.reg_a}. Clock cycles: {self.cycles}. Program counter: {self.program_counter}")
-            print(f"Clock cycles: {self.cycles}")
-            input()
+            # print(
+            #    f"Register A: {self.reg_a}. Clock cycles: {self.cycles}. Program counter: {self.program_counter}")
+            # print(f"Clock cycles: {self.cycles}")
+            # input()
             if self.flag_b:
                 break
-            q=self.cycles
+            # q = self.cycles
             opcode = self.fetch_byte()
-            print("self.ins_" + self.OPCODES[opcode] + "(\"" + self.ADDRESSING[opcode] + "\")")
-            eval("self.ins_" + self.OPCODES[opcode] + "(\"" + self.ADDRESSING[opcode] + "\")")
-            print(f"Cost: {self.cycles-q}")
-
-    def check(self, byte, carry=False, zero=False, neg=False):
-        if carry and byte > 0xff:
-            self.flag_c = True
-        if zero and byte == 0x00:
-            slef.flag_z = True
-        if neg and format(byte, '#010b')[2]: # Does not work properly
-            self.flag_n = True
-
+            # print("self.ins_" + self.OPCODES[opcode] +
+            #      "(\"" + self.ADDRESSING[opcode] + "\")")
+            eval("self.ins_" + self.OPCODES[opcode] +
+                 "(\"" + self.ADDRESSING[opcode] + "\")")
+            # print(f"Cost: {self.cycles-q}")
 
     def ins_adc(self, mode):
         ''' Add with carry '''
-        self.flag_c = bool(int(format(self.reg_a, '#010b')[2]))
-        if mode == 'imm': # cycles 2
+        if mode == 'imm':  # cycles 2
             self.reg_a += self.fetch_byte()
-        elif mode == 'zp': # cycles 5
+        elif mode == 'zp':  # cycles 5
             self.cycles += 2
             self.reg_a += self.read_byte(self.fetch_byte())
         else:
             print(f"Unknown mode {mode}")
             self.flag_b = True
+
+        if self.reg_a > 0xff:
+            self.flag_c = True
+            self.reg_a -= 0x100
         self.flag_z = bool(not self.reg_a)
         self.flag_n = bool(int(format(self.reg_a, '#010b')[2]))
 
-        #self.check(self.reg_a, 'carry', 'zero', 'neg')
-        #if self.flag_c:
-        #    self.reg_a -= 0x100
-
     def ins_asl(self, mode):
         ''' Arithmetic shift left '''
-        if mode == 'acc':
+        if mode == 'acc':  # Costs 2
             self.cycles += 1
             self.reg_a = self.reg_a << 1
-            self.check(self.reg_a, 'carry', 'zero', 'neg')
-            if self.flag_c:
+            if self.reg_a > 0xff:
+                self.flag_c = True
                 self.reg_a -= 0x100
-        elif mode == 'zp':
+            self.flag_z = bool(not self.reg_a)
+            self.flag_n = bool(int(format(self.reg_a, '#010b')[2]))
+        elif mode == 'zp':  # Costs 5
             self.cycles += 1
             addr = self.fetch_byte()
             tmp = self.read_byte(addr) << 1
-            self.check(tmp, 'carry', 'zero', 'neg')
-            if self.flag_c:
+            if tmp > 0xff:
+                self.flag_c = True
                 tmp -= 0x100
+            self.flag_z = bool(not tmp)
+            self.flag_n = bool(int(format(tmp, '#010b')[2]))
             self.write_byte(addr, tmp)
-        elif mode == 'zpx':
+        elif mode == 'zpx':  # Costs 6
             self.cycles += 2
             addr = self.fetch_byte()
             tmp = (self.read_byte(addr) + self.reg_x) << 1
-            self.check(tmp, 'carry', 'zero', 'neg')
-            if self.flag_c:
+            if tmp > 0xff:
+                self.flag_c = True
                 tmp -= 0x100
+            self.flag_z = bool(not tmp)
+            self.flag_n = bool(int(format(tmp, '#010b')[2]))
             self.write_byte(addr, tmp)
         else:
             print(f"Unknown mode {mode}")
@@ -223,18 +222,18 @@ class Processor:
 
     def ins_inx(self, mode):
         ''' Increment X '''
-        if mode == 'imp':
+        if mode == 'imp':  # Costs 2
             self.cycles += 1
             self.reg_x += 0x01
+            self.flag_z = bool(not self.reg_x)
+            self.flag_n = bool(int(format(self.reg_x, '#010b')[2]))
         else:
             print(f"Unknown mode {mode}")
             self.flag_b = True
-       
-        self.check(self.reg_x, False, 'zero', 'neg')
 
     def ins_jsr(self, mode):
         ''' Jump to subroutine '''
-        if mode == 'abs':
+        if mode == 'abs':  # Costs 6
             self.cycles += 1
             self.write_word(self.stack_pointer, self.program_counter-0x01)
             self.stack_pointer -= 0x01
@@ -245,20 +244,21 @@ class Processor:
 
     def ins_lda(self, mode):
         ''' load register A '''
-        if mode == 'imm':
+        if mode == 'imm':  # Costs 2
             self.cycles += 1
             self.reg_a = self.fetch_byte()
-        elif mode == 'zp':
+        elif mode == 'zp':  # Costs 3
             self.cycles += 2
             self.reg_a = self.read_byte(self.fetch_byte())
-        elif mode == 'zpx':
+        elif mode == 'zpx':  # Costs 4
             self.cycles += 3
-            self.reg_a = self.read_byte(self.fetch_byte()+ self.reg_x)
+            self.reg_a = self.read_byte(self.fetch_byte() + self.reg_x)
         else:
             print(f"Unknown mode {mode}")
             self.flag_b = True
 
-        self.check(self.reg_a, False, 'zero', 'neg') 
+        self.flag_z = bool(not self.reg_a)
+        self.flag_n = bool(int(format(self.reg_a, '#010b')[2]))
 
     def ins_nop(self, mode):
         ''' No operations '''
@@ -269,25 +269,24 @@ class Processor:
         if mode == 'imm':
             self.reg_a = self.reg_a | self.fetch_byte()
         elif mode == 'abs':
-            self.cycles += 1 
+            self.cycles += 1
             self.reg_a = self.reg_a | self.fetch_word()
 
         else:
             print(f"Unknown mode {mode}")
             self.flag_b = True
 
-        self.check(self.reg_a, False, 'zero', 'neg') 
+        self.flag_z = bool(not self.reg_a)
+        self.flag_n = bool(int(format(self.reg_a, '#010b')[2]))
 
     def ins_rol(self, mode):
         ''' Rotate bits to the left '''
         if mode == 'acc':
-            self.check(self.reg_a, 'carry', 'zero', False)
-            #self.reg_a = self_reg_a << 1
+            # self.reg_a = self_reg_a << 1
 
         else:
             print(f"Unknown mode {mode}")
             self.flag_b = True
-
 
     def ins_rts(self, mode):
         ''' Return from subroutine '''
@@ -308,7 +307,6 @@ class Processor:
             print(f"Unknown mode {mode}")
             self.flag_b = True
 
-
     def ins_sta(self, mode):
         ''' Store register A '''
         if mode == 'zp':
@@ -320,7 +318,6 @@ class Processor:
         else:
             print(f"Unknown mode {mode}")
             self.flag_b = True
- 
 
     def ins_tax(self, mode):
         ''' Transfer A to X '''
@@ -330,58 +327,56 @@ class Processor:
         else:
             print(f"Unknown mode {mode}")
             self.flag_b = True
-        
-        self.check(self.reg_x, False, 'zero', 'neg')
 
+        self.flag_z = bool(not self.reg_x)
+        self.flag_n = bool(int(format(self.reg_x, '#010b')[2]))
 
 
 def load(bank, address, program):
     for opc in program:
-        bank[address]=opc
-        address+=1
+        bank[address] = opc
+        address += 1
     return bank
-
 
 
 mem = Memory()
 # Load Snake
 mem = load(mem, 0x0600, [0x20, 0x06, 0x06, 0x20, 0x38, 0x06, 0x20, 0x0d, 0x06, 0x20, 0x2a, 0x06, 0x60, 0xa9, 0x02, 0x85,
-                         0x02, 0xa9, 0x04, 0x85, 0x03, 0xa9, 0x11, 0x85, 0x10, 0xa9, 0x10, 0x85, 0x12, 0xa9, 0x0f, 0x85, 
-                         0x14, 0xa9, 0x04, 0x85, 0x11, 0x85, 0x13, 0x85, 0x15, 0x60, 0xa5, 0xfe, 0x85, 0x00, 0xa5, 0xfe, 
-                         0x29, 0x03, 0x18, 0x69, 0x02, 0x85, 0x01, 0x60, 0x20, 0x4d, 0x06, 0x20, 0x8d, 0x06, 0x20, 0xc3, 
-                         0x06, 0x20, 0x19, 0x07, 0x20, 0x20, 0x07, 0x20, 0x2d, 0x07, 0x4c, 0x38, 0x06, 0xa5, 0xff, 0xc9, 
-                         0x77, 0xf0, 0x0d, 0xc9, 0x64, 0xf0, 0x14, 0xc9, 0x73, 0xf0, 0x1b, 0xc9, 0x61, 0xf0, 0x22, 0x60, 
-                         0xa9, 0x04, 0x24, 0x02, 0xd0, 0x26, 0xa9, 0x01, 0x85, 0x02, 0x60, 0xa9, 0x08, 0x24, 0x02, 0xd0, 
-                         0x1b, 0xa9, 0x02, 0x85, 0x02, 0x60, 0xa9, 0x01, 0x24, 0x02, 0xd0, 0x10, 0xa9, 0x04, 0x85, 0x02, 
-                         0x60, 0xa9, 0x02, 0x24, 0x02, 0xd0, 0x05, 0xa9, 0x08, 0x85, 0x02, 0x60, 0x60, 0x20, 0x94, 0x06, 
-                         0x20, 0xa8, 0x06, 0x60, 0xa5, 0x00, 0xc5, 0x10, 0xd0, 0x0d, 0xa5, 0x01, 0xc5, 0x11, 0xd0, 0x07, 
-                         0xe6, 0x03, 0xe6, 0x03, 0x20, 0x2a, 0x06, 0x60, 0xa2, 0x02, 0xb5, 0x10, 0xc5, 0x10, 0xd0, 0x06, 
-                         0xb5, 0x11, 0xc5, 0x11, 0xf0, 0x09, 0xe8, 0xe8, 0xe4, 0x03, 0xf0, 0x06, 0x4c, 0xaa, 0x06, 0x4c, 
-                         0x35, 0x07, 0x60, 0xa6, 0x03, 0xca, 0x8a, 0xb5, 0x10, 0x95, 0x12, 0xca, 0x10, 0xf9, 0xa5, 0x02, 
-                         0x4a, 0xb0, 0x09, 0x4a, 0xb0, 0x19, 0x4a, 0xb0, 0x1f, 0x4a, 0xb0, 0x2f, 0xa5, 0x10, 0x38, 0xe9, 
-                         0x20, 0x85, 0x10, 0x90, 0x01, 0x60, 0xc6, 0x11, 0xa9, 0x01, 0xc5, 0x11, 0xf0, 0x28, 0x60, 0xe6, 
-                         0x10, 0xa9, 0x1f, 0x24, 0x10, 0xf0, 0x1f, 0x60, 0xa5, 0x10, 0x18, 0x69, 0x20, 0x85, 0x10, 0xb0, 
-                         0x01, 0x60, 0xe6, 0x11, 0xa9, 0x06, 0xc5, 0x11, 0xf0, 0x0c, 0x60, 0xc6, 0x10, 0xa5, 0x10, 0x29, 
-                         0x1f, 0xc9, 0x1f, 0xf0, 0x01, 0x60, 0x4c, 0x35, 0x07, 0xa0, 0x00, 0xa5, 0xfe, 0x91, 0x00, 0x60, 
-                         0xa6, 0x03, 0xa9, 0x00, 0x81, 0x10, 0xa2, 0x00, 0xa9, 0x01, 0x81, 0x10, 0x60, 0xa2, 0x00, 0xea, 
+                         0x02, 0xa9, 0x04, 0x85, 0x03, 0xa9, 0x11, 0x85, 0x10, 0xa9, 0x10, 0x85, 0x12, 0xa9, 0x0f, 0x85,
+                         0x14, 0xa9, 0x04, 0x85, 0x11, 0x85, 0x13, 0x85, 0x15, 0x60, 0xa5, 0xfe, 0x85, 0x00, 0xa5, 0xfe,
+                         0x29, 0x03, 0x18, 0x69, 0x02, 0x85, 0x01, 0x60, 0x20, 0x4d, 0x06, 0x20, 0x8d, 0x06, 0x20, 0xc3,
+                         0x06, 0x20, 0x19, 0x07, 0x20, 0x20, 0x07, 0x20, 0x2d, 0x07, 0x4c, 0x38, 0x06, 0xa5, 0xff, 0xc9,
+                         0x77, 0xf0, 0x0d, 0xc9, 0x64, 0xf0, 0x14, 0xc9, 0x73, 0xf0, 0x1b, 0xc9, 0x61, 0xf0, 0x22, 0x60,
+                         0xa9, 0x04, 0x24, 0x02, 0xd0, 0x26, 0xa9, 0x01, 0x85, 0x02, 0x60, 0xa9, 0x08, 0x24, 0x02, 0xd0,
+                         0x1b, 0xa9, 0x02, 0x85, 0x02, 0x60, 0xa9, 0x01, 0x24, 0x02, 0xd0, 0x10, 0xa9, 0x04, 0x85, 0x02,
+                         0x60, 0xa9, 0x02, 0x24, 0x02, 0xd0, 0x05, 0xa9, 0x08, 0x85, 0x02, 0x60, 0x60, 0x20, 0x94, 0x06,
+                         0x20, 0xa8, 0x06, 0x60, 0xa5, 0x00, 0xc5, 0x10, 0xd0, 0x0d, 0xa5, 0x01, 0xc5, 0x11, 0xd0, 0x07,
+                         0xe6, 0x03, 0xe6, 0x03, 0x20, 0x2a, 0x06, 0x60, 0xa2, 0x02, 0xb5, 0x10, 0xc5, 0x10, 0xd0, 0x06,
+                         0xb5, 0x11, 0xc5, 0x11, 0xf0, 0x09, 0xe8, 0xe8, 0xe4, 0x03, 0xf0, 0x06, 0x4c, 0xaa, 0x06, 0x4c,
+                         0x35, 0x07, 0x60, 0xa6, 0x03, 0xca, 0x8a, 0xb5, 0x10, 0x95, 0x12, 0xca, 0x10, 0xf9, 0xa5, 0x02,
+                         0x4a, 0xb0, 0x09, 0x4a, 0xb0, 0x19, 0x4a, 0xb0, 0x1f, 0x4a, 0xb0, 0x2f, 0xa5, 0x10, 0x38, 0xe9,
+                         0x20, 0x85, 0x10, 0x90, 0x01, 0x60, 0xc6, 0x11, 0xa9, 0x01, 0xc5, 0x11, 0xf0, 0x28, 0x60, 0xe6,
+                         0x10, 0xa9, 0x1f, 0x24, 0x10, 0xf0, 0x1f, 0x60, 0xa5, 0x10, 0x18, 0x69, 0x20, 0x85, 0x10, 0xb0,
+                         0x01, 0x60, 0xe6, 0x11, 0xa9, 0x06, 0xc5, 0x11, 0xf0, 0x0c, 0x60, 0xc6, 0x10, 0xa5, 0x10, 0x29,
+                         0x1f, 0xc9, 0x1f, 0xf0, 0x01, 0x60, 0x4c, 0x35, 0x07, 0xa0, 0x00, 0xa5, 0xfe, 0x91, 0x00, 0x60,
+                         0xa6, 0x03, 0xa9, 0x00, 0x81, 0x10, 0xa2, 0x00, 0xa9, 0x01, 0x81, 0x10, 0x60, 0xa2, 0x00, 0xea,
                          0xea, 0xca, 0xd0, 0xfb, 0x60])
 
 cpu = Processor(mem)
 cpu.reset()
 cpu.program_counter = 0x0600
 
-
-mem = load(mem, 0x0000, [0xa9, 0x40, 0x69, 0x08])
-cpu = Processor(mem)
-cpu.reset()
-cpu.program_counter = 0x0000
-
+# mem = load(mem, 0x0000, [0xa9, 0xff, 0x0a])
+# cpu = Processor(mem)
+# cpu.reset()
+# cpu.program_counter = 0x0000
 
 
-cpu.exec(6)
+cpu.exec(0)
 
 print(hex(cpu.reg_a))
 print(hex(cpu.reg_x))
 print(hex(cpu.reg_y))
 print("N V B D I Z C")
-print(int(cpu.flag_n),int(cpu.flag_v),int(cpu.flag_b),int(cpu.flag_d),int(cpu.flag_i),int(cpu.flag_z),int(cpu.flag_c))
+print(int(cpu.flag_n), int(cpu.flag_v), int(cpu.flag_b), int(
+    cpu.flag_d), int(cpu.flag_i), int(cpu.flag_z), int(cpu.flag_c))

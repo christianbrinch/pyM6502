@@ -67,9 +67,9 @@ def main():
         pygame.display.update()
         clock.tick(60)
 
-        '''
+        
         print(
-            f"Register A: {hex(cpu.reg_a)}. Clock cycles: {cpu.cycles}. Program counter: {hex(cpu.program_counter)}. Stack pointer: {hex(cpu.stack_pointer)}")
+            f"Register A: {hex(cpu.reg_a)}. Register X: {hex(cpu.reg_x)}. Clock cycles: {cpu.cycles}. Program counter: {hex(cpu.program_counter)}. Stack pointer: {hex(cpu.stack_pointer)}")
         print("N V B D I Z C")
         print(int(cpu.flag_n), int(cpu.flag_v), int(cpu.flag_b), int(
             cpu.flag_d), int(cpu.flag_i), int(cpu.flag_z), int(cpu.flag_c))
@@ -84,4 +84,4 @@ def main():
             print(f"{hex(addr)}:", [''.join('{:02X}').format(i)
                   for i in cpu.memory[addr:addr+16]])
         input()
-        '''
+        

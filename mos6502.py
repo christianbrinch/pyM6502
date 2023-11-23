@@ -1,4 +1,4 @@
-''' MOs-6502 memory emulation '''
+''' MOS-6502 memory emulation '''
 
 __author__ = "Christian Brinch"
 __copyright__ = "Copyright 2023"
@@ -9,6 +9,10 @@ __maintainer__ = "Christian Brinch"
 __email__ = "brinch.c@gmail.com"
 
 import sys
+import instructions
+from importlib import reload
+
+reload(instructions)
 
 
 class Memory:
@@ -55,6 +59,8 @@ class Processor:
         self.flag_b = True  # status flag - Break Command
         self.flag_v = True  # status flag - Overflow Flag
         self.flag_n = True  # status flag - Negative Flag
+    
+        self.ins = instructions.Set()
 
     def reset(self):
         ''' Reset processor. Program counter is initialized to FCE2 and 
@@ -133,8 +139,8 @@ class Processor:
         #  0  |  1   |  2   |  3   |  4   |  5   |  6   |  7   |  8   |  9   |  A   |  B   |  C   |  D   |  E   |  F   |
         "brk", "ora", "nop", "slo", "nop", "ora", "asl", "slo", "php", "ora", "asl", "nop", "nop", "ora", "asl", "slo",  # 0
         "bpl", "ora", "nop", "slo", "nop", "ora", "asl", "slo", "clc", "ora", "nop", "slo", "nop", "ora", "asl", "slo",  # 1
-        "jsr", "and", "nop", "rla", "bit", "and", "rol", "rla", "plp", "and", "rol", "nop", "bit", "and", "rol", "rla",  # 2
-        "bmi", "and", "nop", "rla", "nop", "and", "rol", "rla", "sec", "and", "nop", "rla", "nop", "and", "rol", "rla",  # 3
+        "jsr", "AND", "nop", "rla", "bit", "AND", "rol", "rla", "plp", "AND", "rol", "nop", "bit", "AND", "rol", "rla",  # 2
+        "bmi", "AND", "nop", "rla", "nop", "AND", "rol", "rla", "sec", "AND", "nop", "rla", "nop", "AND", "rol", "rla",  # 3
         "rti", "eor", "nop", "sre", "nop", "eor", "lsr", "sre", "pha", "eor", "lsr", "nop", "jmp", "eor", "lsr", "sre",  # 4
         "bvc", "eor", "nop", "sre", "nop", "eor", "lsr", "sre", "cli", "eor", "nop", "sre", "nop", "eor", "lsr", "sre",  # 5
         "rts", "adc", "nop", "rra", "nop", "adc", "ror", "rra", "pla", "adc", "ror", "nop", "jmp", "adc", "ror", "rra",  # 6
@@ -151,10 +157,10 @@ class Processor:
 
     def exec(self, cycles: int = 0):
         opcode = self.fetch_byte()
-        print("self.ins_" + self.OPCODEs[opcode] +
-              "(\"" + self.ADDRESSING[opcode] + "\")")
-        eval("self.ins_" + self.OPCODEs[opcode] +
-             "(\"" + self.ADDRESSING[opcode] + "\")")
+        print("self.ins." + self.OPCODEs[opcode] +
+              "(self, \"" + self.ADDRESSING[opcode] + "\")")
+        eval("self.ins." + self.OPCODEs[opcode] +
+             "(self, \"" + self.ADDRESSING[opcode] + "\")")
 
         '''
         while (self.cycles < cycles) or (cycles == 0):
@@ -171,253 +177,6 @@ class Processor:
                  "(\"" + self.ADDRESSING[opcode] + "\")")
             # print(f"Cost: {self.cycles-q}")
         '''
-
-    def ins_adc(self, mode):
-        ''' Add with carry '''
-        if mode == 'imm':  # cycles 2
-            self.reg_a += self.fetch_byte()
-        elif mode == 'zp':  # cycles 5
-            self.cycles += 2
-            self.reg_a += self.read_byte(self.fetch_byte())
-        elif mode == 'inx': # cycles 4
-            tmp = self.fetch_byte()
-            tmp = self.fetch_byte()
-            self.reg_a += self.reg_x+tmp
-        else:
-            print(f"Unknown mode {mode}")
-            self.flag_b = True
-
-        if self.reg_a > 0xff:
-            self.flag_c = True
-            self.reg_a -= 0x100
-        self.flag_z = bool(not self.reg_a)
-        self.flag_n = bool(int(format(self.reg_a, '#010b')[2]))
-
-    def ins_and(self, mode):
-        ''' Logical AND '''
-        if mode == 'imm':
-            self.reg_a = self.reg_a & self.fetch_byte()
-        else:
-            print(f"Unknown mode {mode}")
-            self.flag_b = True
-
-        self.flag_z = bool(not self.reg_a)
-        self.flag_n = bool(int(format(self.reg_a, '#010b')[2]))
-
-    def ins_asl(self, mode):
-        ''' Arithmetic shift left '''
-        if mode == 'acc':  # Costs 2
-            self.cycles += 1
-            self.reg_a = self.reg_a << 1
-            if self.reg_a > 0xff:
-                self.flag_c = True
-                self.reg_a -= 0x100
-            self.flag_z = bool(not self.reg_a)
-            self.flag_n = bool(int(format(self.reg_a, '#010b')[2]))
-        elif mode == 'zp':  # Costs 5
-            self.cycles += 1
-            addr = self.fetch_byte()
-            tmp = self.read_byte(addr) << 1
-            if tmp > 0xff:
-                self.flag_c = True
-                tmp -= 0x100
-            self.flag_z = bool(not tmp)
-            self.flag_n = bool(int(format(tmp, '#010b')[2]))
-            self.write_byte(addr, tmp)
-        elif mode == 'zpx':  # Costs 6
-            self.cycles += 2
-            addr = self.fetch_byte()
-            tmp = (self.read_byte(addr) + self.reg_x) << 1
-            if tmp > 0xff:
-                self.flag_c = True
-                tmp -= 0x100
-            self.flag_z = bool(not tmp)
-            self.flag_n = bool(int(format(tmp, '#010b')[2]))
-            self.write_byte(addr, tmp)
-        else:
-            print(f"Unknown mode {mode}")
-            self.flag_b = True
-
-    def ins_beq(self, mode):
-        ''' Branch on equal '''
-        if mode == 'rel':
-            tmp = self.fetch_word()
-            if self.flag_z:
-                self.program_counter = tmp
-        else:
-            print(f"Unknown mode {mode}")
-            self.flag_b = True
-
-    def ins_brk(self, mode):
-        ''' Break - end program '''
-        self.flag_b = True
-
-    def ins_clc(self, mode):
-        ''' Clear carry flag'''
-        if mode == 'imp':
-            self.flag_c = False
-        else:
-            print(f"Unknown mode {mode}")
-            self.flag_b = True
-
-    def ins_cmp(self, mode):
-        ''' Compare memory and accumulator '''
-        if mode == 'imm':
-            tmp = self.fetch_byte()
-            self.flag_z = bool(not (self.reg_a - tmp))
-            self.flag_c = self.reg_a >= tmp
-            self.flag_n = bool(int(format(self.reg_a, '#010b')[2]))
-        else:
-            print(f"Unknown mode {mode}")
-            self.flag_b = True
-
-    def ins_inx(self, mode):
-        ''' Increment X '''
-        if mode == 'imp':  # Costs 2
-            self.cycles += 1
-            self.reg_x += 0x01
-            self.flag_z = bool(not self.reg_x)
-            self.flag_n = bool(int(format(self.reg_x, '#010b')[2]))
-        else:
-            print(f"Unknown mode {mode}")
-            self.flag_b = True
-
-    def ins_jsr(self, mode):
-        ''' Jump to subroutine '''
-        if mode == 'abs':  # Costs 6
-            self.cycles += 1
-            self.stack_pointer -= 0x01
-            self.write_word(self.stack_pointer+0x100,
-                            self.program_counter+0x01)
-            self.stack_pointer -= 0x01
-            self.program_counter = self.fetch_word()
-        else:
-            print(f"Unknown mode {mode}")
-            self.flag_b = True
-
-    def ins_lda(self, mode):
-        ''' load register A '''
-        if mode == 'imm':  # Costs 2
-            self.cycles += 1
-            self.reg_a = self.fetch_byte()
-        elif mode == 'zp':  # Costs 3
-            self.cycles += 2
-            self.reg_a = self.read_byte(self.fetch_byte())
-        elif mode == 'zpx':  # Costs 4
-            self.cycles += 3
-            self.reg_a = self.read_byte(self.fetch_byte() + self.reg_x)
-        else:
-            print(f"Unknown mode {mode}")
-            self.flag_b = True
-
-        self.flag_z = bool(not self.reg_a)
-        self.flag_n = bool(int(format(self.reg_a, '#010b')[2]))
-
-    def ins_nop(self, mode):
-        ''' No operations '''
-        self.cycles += 1
-
-    def ins_ora(self, mode):
-        ''' Logical inclusive OR '''
-        if mode == 'imm':
-            self.reg_a = self.reg_a | self.fetch_byte()
-        elif mode == 'abs':
-            self.cycles += 1
-            self.reg_a = self.reg_a | self.fetch_word()
-        else:
-            print(f"Unknown mode {mode}")
-            self.flag_b = True
-
-        self.flag_z = bool(not self.reg_a)
-        self.flag_n = bool(int(format(self.reg_a, '#010b')[2]))
-
-    def ins_rol(self, mode):
-        ''' Rotate bits to the left '''
-        if mode == 'acc':
-            tmp = int(format(self.reg_a, '#010b')[2])
-            self.reg_a = self.reg_a << 1
-            self.reg_a += tmp
-            self.flag_z = bool(not self.reg_a)
-            self.flag_n = bool(int(format(self.reg_a, '#010b')[2]))
-        else:
-            print(f"Unknown mode {mode}")
-            self.flag_b = True
-
-    def ins_rts(self, mode):
-        ''' Return from subroutine '''
-        self.cycles += 3
-        if mode == 'imp':
-            self.stack_pointer += 0x01
-            self.program_counter = self.read_word(
-                self.stack_pointer+0x100)+0x01
-            self.stack_pointer += 0x01
-        else:
-            print(f"Unknown mode {mode}")
-            self.flag_b = True
-
-    def ins_sec(self, mode):
-        ''' set carry flag '''
-        if mode == 'imp':
-            self.cycles += 1
-            self.flag_c = True
-        else:
-            print(f"Unknown mode {mode}")
-            self.flag_b = True
-
-    def ins_sta(self, mode):
-        ''' store register A '''
-        if mode == 'zp':
-            self.cycles += 2
-            self.write_byte(self.fetch_byte(), self.reg_a)
-        elif mode == 'zpx':
-            self.cycles += 3
-            self.write_byte(self.fetch_byte()+self.reg_x, self.reg_a)
-        else:
-            print(f"Unknown mode {mode}")
-            self.flag_b = True
-
-    def ins_tax(self, mode):
-        ''' Transfer A to X '''
-        if mode == 'imp':
-            self.cycles += 1
-            self.reg_x = self.reg_a
-        else:
-            print(f"Unknown mode {mode}")
-            self.flag_b = True
-
-        self.flag_z = bool(not self.reg_x)
-        self.flag_n = bool(int(format(self.reg_x, '#010b')[2]))
-
-
-    # Illegal instructions
-
-    def ins_rra(self, mode):
-        ''' Rotate right + Add with carry '''
-        if mode == 'iny':
-            self.reg_y += self.fetch_byte()
-            tmp = int(format(self.reg_y, '#010b')[2])
-            self.reg_a += self.reg_y << 1
-            self.reg_a += tmp
-            
-            if self.reg_a > 0xff:
-                self.flag_c = True
-                self.reg_a -= 0x100
-            self.flag_z = bool(not self.reg_a)
-            self.flag_n = bool(int(format(self.reg_a, '#010b')[2]))
-        else:
-            print(f"Unknown mode {mode}")
-            self.flag_b = True
-
-    def ins_slo(self, mode):
-        ''' Arithmetic shift left + bitwise OR '''
-        if mode == 'aby':
-            self.reg_y += self.fetch_byte()
-            self.reg_y = self.reg_y << 1
-            self.reg_a = self.reg_a | self.reg_y
-        else:
-            print(f"Unknown mode {mode}")
-            self.flag_b = True
-
 
 
 def load(bank, address, program):

@@ -1,4 +1,4 @@
-''' MOS-6502 memory emulation '''
+''' MOs-6502 memory emulation '''
 
 __author__ = "Christian Brinch"
 __copyright__ = "Copyright 2023"
@@ -12,7 +12,7 @@ import sys
 
 
 class Memory:
-    ''' Memory for the MOS-6502 '''
+    ''' Memory for the MOs-6502 '''
 
     def __init__(self, size: int = 65536):
         ''' Initialize the memory to size. Default to 64K bytes.'''
@@ -26,7 +26,7 @@ class Memory:
         return self.memory[address]
 
     def __setitem__(self, address: int, value: int):
-        ''' Set address to value. '''
+        ''' set address to value. '''
         if value.bit_length() > 8:
             raise ValueError("Value too large")
         self.memory[address] = value
@@ -34,7 +34,7 @@ class Memory:
 
 
 class Processor:
-    ''' The MOS-6502 processor '''
+    ''' The MOs-6502 processor '''
 
     def __init__(self, memory: Memory):
         ''' Initialize the CPU '''
@@ -45,16 +45,16 @@ class Processor:
         self.reg_y = 0  # Incex register Y
 
         self.program_counter = 0  # Program counter
-        self.stack_pointer = 0  # Stack pointer
+        self.stack_pointer = 0  # stack pointer
         self.cycles = 0  # Clock cycles
 
-        self.flag_c = True  # Status flag - Carry Flag
-        self.flag_z = True  # Status flag - Zero Flag
-        self.flag_i = True  # Status flag - Interrupt Disable
-        self.flag_d = True  # Status flag - Decimal Mode Flag
-        self.flag_b = True  # Status flag - Break Command
-        self.flag_v = True  # Status flag - Overflow Flag
-        self.flag_n = True  # Status flag - Negative Flag
+        self.flag_c = True  # status flag - Carry Flag
+        self.flag_z = True  # status flag - Zero Flag
+        self.flag_i = True  # status flag - Interrupt Disable
+        self.flag_d = True  # status flag - Decimal Mode Flag
+        self.flag_b = True  # status flag - Break Command
+        self.flag_v = True  # status flag - Overflow Flag
+        self.flag_n = True  # status flag - Negative Flag
 
     def reset(self):
         ''' Reset processor. Program counter is initialized to FCE2 and 
@@ -88,7 +88,7 @@ class Processor:
         return data
 
     def write_word(self, address: int, value: int) -> None:
-        ''' Split a word to two bytes and write to memory. '''
+        ''' split a word to two bytes and write to memory. '''
 
         if sys.byteorder == "little":
             self.write_byte(address, value & 0xFF)
@@ -129,7 +129,7 @@ class Processor:
         "rel", "iny", "imp", "iny", "zpx", "zpx", "zpx", "zpx", "imp", "aby", "imp", "aby", "abx", "abx", "abx", "abx",  # F
     ]
 
-    OPCODES = [
+    OPCODEs = [
         #  0  |  1   |  2   |  3   |  4   |  5   |  6   |  7   |  8   |  9   |  A   |  B   |  C   |  D   |  E   |  F   |
         "brk", "ora", "nop", "slo", "nop", "ora", "asl", "slo", "php", "ora", "asl", "nop", "nop", "ora", "asl", "slo",  # 0
         "bpl", "ora", "nop", "slo", "nop", "ora", "asl", "slo", "clc", "ora", "nop", "slo", "nop", "ora", "asl", "slo",  # 1
@@ -151,9 +151,9 @@ class Processor:
 
     def exec(self, cycles: int = 0):
         opcode = self.fetch_byte()
-        print("self.ins_" + self.OPCODES[opcode] +
+        print("self.ins_" + self.OPCODEs[opcode] +
               "(\"" + self.ADDRESSING[opcode] + "\")")
-        eval("self.ins_" + self.OPCODES[opcode] +
+        eval("self.ins_" + self.OPCODEs[opcode] +
              "(\"" + self.ADDRESSING[opcode] + "\")")
 
         '''
@@ -165,9 +165,9 @@ class Processor:
                 break
             # q = self.cycles
             opcode = self.fetch_byte()
-            print("self.ins_" + self.OPCODES[opcode] +
+            print("self.ins_" + self.OPCODEs[opcode] +
                   "(\"" + self.ADDRESSING[opcode] + "\")")
-            eval("self.ins_" + self.OPCODES[opcode] +
+            eval("self.ins_" + self.OPCODEs[opcode] +
                  "(\"" + self.ADDRESSING[opcode] + "\")")
             # print(f"Cost: {self.cycles-q}")
         '''
@@ -179,6 +179,10 @@ class Processor:
         elif mode == 'zp':  # cycles 5
             self.cycles += 2
             self.reg_a += self.read_byte(self.fetch_byte())
+        elif mode == 'inx': # cycles 4
+            tmp = self.fetch_byte()
+            tmp = self.fetch_byte()
+            self.reg_a += self.reg_x+tmp
         else:
             print(f"Unknown mode {mode}")
             self.flag_b = True
@@ -232,7 +236,17 @@ class Processor:
             self.write_byte(addr, tmp)
         else:
             print(f"Unknown mode {mode}")
-            Self.flag_b = True
+            self.flag_b = True
+
+    def ins_beq(self, mode):
+        ''' Branch on equal '''
+        if mode == 'rel':
+            tmp = self.fetch_word()
+            if self.flag_z:
+                self.program_counter = tmp
+        else:
+            print(f"Unknown mode {mode}")
+            self.flag_b = True
 
     def ins_brk(self, mode):
         ''' Break - end program '''
@@ -244,18 +258,18 @@ class Processor:
             self.flag_c = False
         else:
             print(f"Unknown mode {mode}")
-            Self.flag_b = True
+            self.flag_b = True
 
     def ins_cmp(self, mode):
         ''' Compare memory and accumulator '''
         if mode == 'imm':
-            tmp = self.read_byte()
+            tmp = self.fetch_byte()
             self.flag_z = bool(not (self.reg_a - tmp))
             self.flag_c = self.reg_a >= tmp
             self.flag_n = bool(int(format(self.reg_a, '#010b')[2]))
         else:
             print(f"Unknown mode {mode}")
-            Self.flag_b = True
+            self.flag_b = True
 
     def ins_inx(self, mode):
         ''' Increment X '''
@@ -342,7 +356,7 @@ class Processor:
             self.flag_b = True
 
     def ins_sec(self, mode):
-        ''' Set carry flag '''
+        ''' set carry flag '''
         if mode == 'imp':
             self.cycles += 1
             self.flag_c = True
@@ -351,7 +365,7 @@ class Processor:
             self.flag_b = True
 
     def ins_sta(self, mode):
-        ''' Store register A '''
+        ''' store register A '''
         if mode == 'zp':
             self.cycles += 2
             self.write_byte(self.fetch_byte(), self.reg_a)
@@ -373,6 +387,37 @@ class Processor:
 
         self.flag_z = bool(not self.reg_x)
         self.flag_n = bool(int(format(self.reg_x, '#010b')[2]))
+
+
+    # Illegal instructions
+
+    def ins_rra(self, mode):
+        ''' Rotate right + Add with carry '''
+        if mode == 'iny':
+            self.reg_y += self.fetch_byte()
+            tmp = int(format(self.reg_y, '#010b')[2])
+            self.reg_a += self.reg_y << 1
+            self.reg_a += tmp
+            
+            if self.reg_a > 0xff:
+                self.flag_c = True
+                self.reg_a -= 0x100
+            self.flag_z = bool(not self.reg_a)
+            self.flag_n = bool(int(format(self.reg_a, '#010b')[2]))
+        else:
+            print(f"Unknown mode {mode}")
+            self.flag_b = True
+
+    def ins_slo(self, mode):
+        ''' Arithmetic shift left + bitwise OR '''
+        if mode == 'aby':
+            self.reg_y += self.fetch_byte()
+            self.reg_y = self.reg_y << 1
+            self.reg_a = self.reg_a | self.reg_y
+        else:
+            print(f"Unknown mode {mode}")
+            self.flag_b = True
+
 
 
 def load(bank, address, program):

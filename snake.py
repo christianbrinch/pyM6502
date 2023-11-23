@@ -1,6 +1,9 @@
 import pygame
 import numpy as np
 import mos6502
+from importlib import reload
+
+reload(mos6502)
 
 SIZE = height, width = 320, 320
 

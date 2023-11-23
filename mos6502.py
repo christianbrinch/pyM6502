@@ -155,6 +155,7 @@ class Processor:
               "(\"" + self.ADDRESSING[opcode] + "\")")
         eval("self.ins_" + self.OPCODES[opcode] +
              "(\"" + self.ADDRESSING[opcode] + "\")")
+
         '''
         while (self.cycles < cycles) or (cycles == 0):
             # print(
@@ -185,6 +186,17 @@ class Processor:
         if self.reg_a > 0xff:
             self.flag_c = True
             self.reg_a -= 0x100
+        self.flag_z = bool(not self.reg_a)
+        self.flag_n = bool(int(format(self.reg_a, '#010b')[2]))
+
+    def ins_and(self, mode):
+        ''' Logical AND '''
+        if mode == 'imm':
+            self.reg_a = self.reg_a & self.fetch_byte()
+        else:
+            print(f"Unknown mode {mode}")
+            self.flag_b = True
+
         self.flag_z = bool(not self.reg_a)
         self.flag_n = bool(int(format(self.reg_a, '#010b')[2]))
 
@@ -226,6 +238,25 @@ class Processor:
         ''' Break - end program '''
         self.flag_b = True
 
+    def ins_clc(self, mode):
+        ''' Clear carry flag'''
+        if mode == 'imp':
+            self.flag_c = False
+        else:
+            print(f"Unknown mode {mode}")
+            Self.flag_b = True
+
+    def ins_cmp(self, mode):
+        ''' Compare memory and accumulator '''
+        if mode == 'imm':
+            tmp = self.read_byte()
+            self.flag_z = bool(not (self.reg_a - tmp))
+            self.flag_c = self.reg_a >= tmp
+            self.flag_n = bool(int(format(self.reg_a, '#010b')[2]))
+        else:
+            print(f"Unknown mode {mode}")
+            Self.flag_b = True
+
     def ins_inx(self, mode):
         ''' Increment X '''
         if mode == 'imp':  # Costs 2
@@ -241,8 +272,10 @@ class Processor:
         ''' Jump to subroutine '''
         if mode == 'abs':  # Costs 6
             self.cycles += 1
-            self.write_word(self.stack_pointer-0x01, self.program_counter-0x01)
-            self.stack_pointer -= 0x02
+            self.stack_pointer -= 0x01
+            self.write_word(self.stack_pointer+0x100,
+                            self.program_counter+0x01)
+            self.stack_pointer -= 0x01
             self.program_counter = self.fetch_word()
         else:
             print(f"Unknown mode {mode}")
@@ -300,8 +333,10 @@ class Processor:
         ''' Return from subroutine '''
         self.cycles += 3
         if mode == 'imp':
-            self.program_counter = self.read_word(self.stack_pointer)
-            self.stack_pointer += 0x02
+            self.stack_pointer += 0x01
+            self.program_counter = self.read_word(
+                self.stack_pointer+0x100)+0x01
+            self.stack_pointer += 0x01
         else:
             print(f"Unknown mode {mode}")
             self.flag_b = True

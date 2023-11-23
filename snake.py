@@ -41,12 +41,14 @@ def main():
     while not done:
         cpu.exec(1)
 
+        # Random number generator
+        cpu.memory[0x00fe] = np.random.randint(255)
+
         # Draw screen
         surface = pygame.surfarray.make_surface(
             np.array(cpu.memory[0x0200:0x0600]).reshape(32, 32))
         screen.blit(surface, (0, 0))
 
-        '''
         # Get player input
         key = pygame.key.get_pressed()
         if key[pygame.K_LEFT]:
@@ -57,12 +59,26 @@ def main():
             cpu.memory[0xff] = 0x01
         elif key[pygame.K_DOWN]:
             cpu.memory[0xff] = 0x04
-        '''
+
         # Update and wait for next clock cycle
         pygame.display.update()
         clock.tick(60)
 
+        '''
         print(
             f"Register A: {hex(cpu.reg_a)}. Clock cycles: {cpu.cycles}. Program counter: {hex(cpu.program_counter)}. Stack pointer: {hex(cpu.stack_pointer)}")
-        print([hex(i) for i in cpu.memory[0xf0:0xff]])
+        print("N V B D I Z C")
+        print(int(cpu.flag_n), int(cpu.flag_v), int(cpu.flag_b), int(
+            cpu.flag_d), int(cpu.flag_i), int(cpu.flag_z), int(cpu.flag_c))
+        print("Zero page:")
+        for j in range(16):
+            addr = j*16
+            print(f"{hex(addr)}:", [''.join('{:02X}').format(i)
+                  for i in cpu.memory[addr:addr+16]])
+        print("Stack:")
+        for j in range(16):
+            addr = j*16+0x100
+            print(f"{hex(addr)}:", [''.join('{:02X}').format(i)
+                  for i in cpu.memory[addr:addr+16]])
         input()
+        '''

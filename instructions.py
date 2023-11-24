@@ -11,6 +11,7 @@ __email__ = "brinch.c@gmail.com"
 
 class Set:
     ''' Addressing modes '''
+
     def imp(self):
         return
 
@@ -19,7 +20,7 @@ class Set:
 
     def imm(self, obj):
         return obj.fetch_byte()
-        
+
     def abs(self, obj):
         return obj.fetch_word()
 
@@ -51,6 +52,7 @@ class Set:
         return obj.fetch_byte()
 
     ''' Check flags '''
+
     def check(self, flag, register):
         if flag == 'carry':
             if register > 0xff:
@@ -60,8 +62,8 @@ class Set:
         elif flag == 'neg':
             self.flag_z = bool(not register)
 
-
     ''' Instructions '''
+
     def adc(self, obj, mode):
         ''' Add with carry '''
         obj.reg_a += eval("self."+mode+"(obj)")
@@ -138,12 +140,12 @@ class Set:
     def rol(self, obj, mode):
         ''' Rotate bits to the left '''
         addr = eval("self."+mode+"(obj)")
-        qbit = int(format(addr, '#010b')[2])
+        bit = int(format(addr, '#010b')[2])
         obj.reg_a = obj.reg_a << 1
         obj.reg_a += bit
         self.check('zero', obj.reg_a)
         self.check('neg', obj.reg_a)
-        
+
     def rts(self, obj, mode):
         ''' Return from subroutine '''
         obj.stack_pointer += 0x01
@@ -163,8 +165,9 @@ class Set:
         obj.reg_x = obj.reg_a
         self.check('zero', obj.reg_x)
         self.check('neg', obj.reg_x)
-    
+
     ''' Illegal instructions '''
+
     def rra(self, obj, mode):
         ''' Rotate right + add with carry '''
         addr = eval("self."+mode+"(obj)")
@@ -179,13 +182,3 @@ class Set:
         ''' Arithmetic shift left + bitwise OR '''
         addr = eval("self."+mode+"(obj)")
         obj.reg_a = obj.reg_a | (addr << 1)
-
-
-
-
-
-
-
-
-
-

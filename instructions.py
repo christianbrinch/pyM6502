@@ -12,168 +12,309 @@ __email__ = "brinch.c@gmail.com"
 class Set:
     ''' Addressing modes '''
 
-    def imp(self, obj, mode=None):
-        return
-
-    def acc(self, obj, mode=None):
-        return obj.reg_a
-
-    def imm(self, obj, mode=None):
-        return obj.fetch_byte()
-
-    def abs(self, obj, mode=None):
-        return obj.fetch_word()
-
-    def abx(self, obj, mode=None):
-        return obj.fetch_word()+obj.reg_x
-
-    def aby(self, obj, mode=None):
-        return obj.fetch_word()+obj.reg_y
-
-    def zp(self, obj, mode=None):
-        if mode == 'write':
+    def get(self, obj, mode):
+        if mode == 'imm':
             return obj.fetch_byte()
-        return obj.read_byte(obj.fetch_byte())
+        elif mode == 'abs':
+            return obj.read_byte(obj.fetch_word())
+        elif mode == 'abx':
+            return obj.read_byte(obj.fetch_word()+obj.reg_x)
+        elif mode == 'aby':
+            return obj.read_byte(obj.fetch_word()+obj.reg_y)
+        elif mode == 'zp':
+            return obj.read_byte(obj.fetch_byte())
+        elif mode == 'zpx':
+            return obj.read_byte(obj.fetch_byte()+obj.reg_x)
+        elif mode == 'zpy':
+            return obj.read_byte(obj.fetch_byte()+obj.reg_y)
+        elif mode == 'inx':
+            return obj.read_word(obj.read_word(obj.fetch_byte() + obj.reg_x))
+        elif mode == 'iny':
+            return obj.read_word(obj.read_word(obj.fetch_byte() + obj.reg_y))
 
-    def zpx(self, obj, mode=None):
-        if mode == 'write':
+    def put(self, obj, mode):
+        if mode == 'abs':
+            return obj.fetch_word()
+        if mode == 'abx':
+            return obj.fetch_word()+obj.reg_x
+        if mode == 'aby':
+            return obj.fetch_word()+obj.reg_y
+        elif mode == 'zp':
+            return obj.fetch_byte()
+        elif mode == 'zpx':
             return obj.fetch_byte()+obj.reg_x
-        return obj.read_byte(obj.fetch_byte()+obj.reg_x)
-
-    def zpy(self, obj, mode=None):
-        if mode == 'write':
+        elif mode == 'zpy':
             return obj.fetch_byte()+obj.reg_y
-        return obj.read_byte(obj.fetch_byte()+obj.reg_y)
+        elif mode == 'inx':
+            return obj.read_word(obj.fetch_byte() + obj.reg_x)
+        elif mode == 'iny':
+            return obj.read_word(obj.fetch_byte() + obj.reg_y)
 
-    def inx(self, obj, mode=None):
-        return obj.read_word(obj.read_word(obj.fetch_byte() + obj.reg_x))
+    ''' 
+        Instructions 
+        Split into sections    
+    '''
 
-    def iny(self, obj, mode=None):
-        return obj.read_word(obj.read_word(obj.fetch_byte() + obj.reg_y))
+    ''' Section 1: Load and store '''
 
-    def rel(self, obj, mode=None):
-       return obj.fetch_byte() 
+    def lda(self, obj, mode):
+        ''' Load register A '''
+        obj.reg_a = self.get(obj, mode)
+        obj.flag_z = bool(not obj.reg_a)
+        obj.flag_n = bool(int(format(obj.reg_a, '08b')[-8]))
 
-    ''' Check flags '''
+    def ldx(self, obj, mode):
+        ''' Load register X '''
+        obj.reg_x = self.get(obj, mode)
+        obj.flag_z = bool(not obj.reg_x)
+        obj.flag_n = bool(int(format(obj.reg_x, '08b')[-8]))
 
-    def check(self, obj, flag, register):
-        if flag == 'carry':
-            if register > 0xff:
-                obj.flag_c = True
-        elif flag == 'zero':
-            obj.flag_z = bool(not register)
-        elif flag == 'neg':
-            obj.flag_n = register<0
+    def ldy(self, obj, mode):
+        ''' Load register Y '''
+        obj.reg_y = self.get(obj, mode)
+        obj.flag_z = bool(not obj.reg_y)
+        obj.flag_n = bool(int(format(obj.reg_y, '08b')[-8]))
 
-    ''' Instructions '''
+    def sta(self, obj, mode):
+        ''' Store register A '''
+        obj.write_byte(self.put(obj, mode), obj.reg_a)
 
-    def adc(self, obj, mode):
-        ''' Add with carry '''
-        obj.reg_a += eval("self."+mode+"(obj)")
-        self.check(obj, 'carry', obj.reg_a)
-        self.check(obj, 'zero', obj.reg_a)
-        self.check(obj, 'neg', obj.reg_a)
+    def stx(self, obj, mode):
+        ''' Store register X '''
+        obj.write_byte(self.put(obj, mode), obj.reg_x)
 
-    def AND(self, obj, mode):
-        ''' Logical AND with accumulator '''
-        obj.reg_a = obj.reg_a & eval("self."+mode+"(obj)")
-        self.check(obj, 'zero', obj.reg_a)
-        self.check(obj, 'neg', obj.reg_a)
+    def sty(self, obj, mode):
+        ''' Store register Y '''
+        obj.write_byte(self.put(obj, mode), obj.reg_y)
+
+    ''' Section 2: Transfer '''
+
+    def tax(self, obj, mode):
+        ''' Transfer A to X '''
+        obj.reg_x = obj.reg_a
+        obj.flag_z = bool(not obj.reg_a)
+        obj.flag_n = bool(int(format(obj.reg_a, '08b')[-8]))
+
+    def tay(self, obj, mode):
+        ''' Transfer A to Y '''
+        obj.reg_y = obj.reg_a
+        obj.flag_z = bool(not obj.reg_y)
+        obj.flag_n = bool(int(format(obj.reg_y, '08b')[-8]))
+
+    def tsx(self, obj, mode):
+        ''' Transfer stack pointer to X '''
+        obj.reg_x = obj.stack_pointer
+        obj.flag_z = bool(not obj.reg_x)
+        obj.flag_n = bool(int(format(obj.reg_x, '08b')[-8]))
+
+    def txa(self, obj, mode):
+        ''' Transfer X to A '''
+        obj.reg_a = obj.reg_x
+        obj.flag_z = bool(not obj.reg_a)
+        obj.flag_n = bool(int(format(obj.reg_a, '08b')[-8]))
+
+    def txs(self, obj, mode):
+        ''' Transfer stack pointer to X '''
+        obj.stack_pointer = obj.reg_x
+
+    def tya(self, obj, mode):
+        ''' Transfer Y to A '''
+        obj.reg_a = obj.reg_y
+        obj.flag_z = bool(not obj.reg_a)
+        obj.flag_n = bool(int(format(obj.reg_a, '08b')[-8]))
+
+    ''' Section 4: Shift '''
 
     def asl(self, obj, mode):
         ''' Arithmetic shift left '''
-        obj.reg_a = eval("self."+mode+"(obj)") << 1
-        self.check(obj, 'zero', obj.reg_a)
-        self.check(obj, 'neg', obj.reg_a)
+        if mode == 'acc':
+            value = obj.reg_a
+            self.flag_c = bool(int(format(value, '08b')[-8]))
+            value = max(value << 1, 0xff)
+            obj.reg_a = value
+        else:
+            value = self.get(obj, mode)
+            self.flag_c = bool(int(format(value, '08b')[-8]))
+            addr = self.put(obj, mode)
+            value = max(value << 1, 0xff)
+            obj.write_byte(addr, value)
+        self.flag_n = bool(int(format(value, '08b')[-8]))
+        self.flag_z = bool(value)
 
-    def bcc(self, obj, mode):
-        ''' Branch on clear carry '''
-        addr = eval("self."+mode+"(obj)")
-        if not obj.flag_c:
-            obj.program_counter += addr
+    def lsr(self, obj, mode):
+        ''' Logical shift right '''
+        if mode == 'acc':
+            value = obj.reg_a
+            self.flag_c = bool(int(format(value, '08b')[-1]))
+            value = max(value >> 1, 0xff)
+            obj.reg_a = value
+        else:
+            value = self.get(obj, mode)
+            self.flag_c = bool(int(format(value, '08b')[-1]))
+            addr = self.put(obj, mode)
+            value = max(value >> 1, 0xff)
+            obj.write_byte(addr, value)
+        self.flag_n = False
+        self.flag_z = bool(value)
+
+    def rol(self, obj, mode):
+        ''' Rotate bits to the left '''
+        if mode == 'acc':
+            value = obj.reg_a
+            self.flag_c = bool(int(format(value, '08b')[-8]))
+            value = max((value << 1) + int(self.flag_c), 0xff)
+            obj.reg_a = value
+        else:
+            value = self.get(obj, mode)
+            self.flag_c = bool(int(format(value, '08b')[-8]))
+            addr = self.put(obj, mode)
+            value = max((value << 1) + int(self.flag_c), 0xff)
+            obj.write_byte(addr, value)
+        self.flag_n = bool(int(format(value, '08b')[-8]))
+        self.flag_z = bool(value)
+
+    def ror(self, obj, mode):
+        ''' Rotate bits to the left '''
+        if mode == 'acc':
+            value = obj.reg_a
+            self.flag_n = bool(int(format(value, '08b')[-8]))
+            self.flag_c = bool(int(format(value, '08b')[-1]))
+            value = max((value >> 1) + int(self.flag_c)*0xf0, 0xff)
+            obj.reg_a = value
+        else:
+            value = self.get(obj, mode)
+            self.flag_n = bool(int(format(value, '08b')[-8]))
+            self.flag_c = bool(int(format(value, '08b')[-1]))
+            addr = self.put(obj, mode)
+            value = max((value >> 1) + int(self.flag_c)*0xf0, 0xff)
+            obj.write_byte(addr, value)
+        self.flag_z = bool(value)
+
+    ''' Section 5: Logical instructions'''
+
+    def AND(self, obj, mode):
+        ''' Logical AND with accumulator & '''
+        obj.reg_a = obj.reg_a & self.get(obj, mode)
+        obj.flag_z = bool(obj.reg_a)
+        obj.flag_n = bool(int(format(obj.reg_a, '08b')[-8]))
 
     def bit(self, obj, mode):
         ''' Test bit in memory with accumulator '''
-        addr = eval("self."+mode+"(obj)")
-        obj.flag_n = bool(int(format(obj.reg_a, '#010b')[2]))
-        obj.flag_v = bool(int(format(obj.reg_a, '#010b')[3]))
-        obj.flag_z = addr & obj.reg_a
+        value = self.get(obj, mode)
+        obj.flag_n = bool(int(format(value, '08b')[-8]))
+        obj.flag_v = bool(int(format(value, '08b')[-7]))
+        obj.flag_z = bool(addr & obj.reg_a)
 
-    def beq(self, obj, mode):
-        ''' Branch on equal '''
-        addr = eval("self."+mode+"(obj)")
-        if obj.flag_z:
-            obj.program_counter += addr  
-    
-    def bmi(self, obj, mode):
-        ''' Branch on negative '''
-        addr = eval("self."+mode+"(obj)")
-        if obj.flag_n:
-            obj.program_counter += addr 
+    def eor(self, obj, mode):
+        ''' Binary Exclusive OR with accumulator ^'''
+        obj.reg_a = obj.reg_a ^ self.get(obj, mode)
+        obj.flag_z = bool(obj.reg_a)
+        obj.flag_n = bool(int(format(obj.reg_a, '08b')[-8]))
 
-    def bne(self, obj, mode):
-        ''' Branch on result not zero '''
-        addr = eval("self."+mode+"(obj)")
-        if not obj.flag_z:
-            obj.program_counter += addr
+    def ora(self, obj, mode):
+        ''' Binary OR with accumulator | '''
+        obj.reg_a = obj.reg_a | self.get(obj, mode)
+        obj.flag_z = bool(obj.reg_a)
+        obj.flag_n = bool(int(format(obj.reg_a, '08b')[-8]))
 
-    def bpl(self, obj, mode):
-        ''' Branch on not negative '''
-        addr = eval("self."+mode+"(obj)")
-        if not obj.flag_n:
-            obj.program_counter += addr - 0x100
+    ''' Section 6: Arithmetic instructions '''
+
+    def adc(self, obj, mode):
+        ''' Add with carry '''
+        value = self.get(obj, mode)
+        n = int(format(value, '08b')[-8])
+        m = int(format(obj.reg_a, '08b')[-8])
+        if value > 0xff:
+            obj.flag_c = True
+        obj.reg_a += value
+        # obj.flag_v = (not m & not n & not obj.flag_c) | (m & n & ! obj.flag_c)
+        obj.flag_n = bool(int(format(obj.reg_a, '08b')[-8]))
+
+    def cmp(self, obj, mode):
+        ''' Compare memory and accumulator '''
+        value = self.get(obj, mode)
+        obj.flag_c = obj.reg_a >= value
+        obj.flag_z = bool(not (obj.reg_a - value))
+        obj.flag_n = bool(int(format(obj.reg_a, '08b')[-8]))
+
+    def cpx(self, obj, mode):
+        ''' Compare Register X '''
+        value = self.get(obj, mode)
+        obj.flag_c = obj.reg_x >= value
+        obj.flag_z = bool(not (obj.reg_x - value))
+        obj.flag_n = bool(int(format(obj.reg_x, '08b')[-8]))
+
+    def cpy(self, obj, mode):
+        ''' Compare Register Y '''
+        value = self.get(obj, mode)
+        obj.flag_c = obj.reg_y >= value
+        obj.flag_z = bool(not (obj.reg_y - value))
+        obj.flag_n = bool(int(format(obj.reg_y, '08b')[-8]))
+
+    def sbc(self, obj, mode):
+        ''' Subtract with borrow '''
+        value = self.get(obj, mode)
+        n = int(format(value, '08b')[-8])
+        m = int(format(obj.reg_a, '08b')[-8])
+        obj.reg_a -= value
+        obj.flag_c = obj.reg_a >= 0
+        obj.flag_v = obj.reg_a >= 0x80
+        obj.flag_z = bool(not obj.reg_a)
+        obj.flag_n = bool(int(format(obj.reg_a, '08b')[-8]))
+
+    ''' Section 7: Incrementing instructions '''
+
+    def dec(self, obj, mode):
+        ''' Decrement memory by 1 '''
+        value = self.get(obj, mode)
+        addr = self.put(obj, mode)
+        value -= 1
+        obj.write_byte(addr, value)
+        obj.flag_z = bool(not value)
+        obj.flag_n = bool(int(format(value, '08b')[-8]))
+
+    def dex(self, obj, mode):
+        ''' Increment register X '''
+        obj.reg_x -= 0x01
+        obj.flag_z = bool(not obj.reg_x)
+        obj.flag_n = bool(int(format(obj.reg_x, '08b')[-8]))
+
+    def dey(self, obj, mode):
+        ''' Increment register Y '''
+        obj.reg_y -= 0x01
+        obj.flag_z = bool(not obj.reg_y)
+        obj.flag_n = bool(int(format(obj.reg_y, '0b8')[-8]))
+
+    def inc(self, obj, mode):
+        ''' Increment memory by 1 '''
+        value = self.get(obj, mode)
+        addr = self.put(obj, mode)
+        value += 1
+        obj.write_byte(addr, value)
+        obj.flag_z = bool(not value)
+        obj.flag_n = bool(int(format(value, '08b')[-8]))
+
+    def inx(self, obj, mode):
+        ''' Increment register X '''
+        obj.reg_x += 0x01
+        obj.flag_z = bool(not obj.reg_x)
+        obj.flag_n = bool(int(format(obj.reg_x, '08b')[-8]))
+
+    def iny(self, obj, mode):
+        ''' Increment register Y '''
+        obj.reg_y += 0x01
+        obj.flag_z = bool(not obj.reg_y)
+        obj.flag_n = bool(int(format(obj.reg_y, '08b')[-8]))
+
+    ''' Section 8: Control '''
 
     def brk(self, obj, mode):
         ''' Break - end program '''
         obj.flag_b = True
 
-    def bcs(self, obj, mode):
-        ''' Branch on carry set '''
-        addr = eval("self."+mode+"(obj)")
-        if obj.flag_c:
-            obj.program_counter += addr
-
-
-    def clc(self, obj, mode):
-        ''' Clear carry flag '''
-        obj.flag_c = False
-
-    def cmp(self, obj, mode):
-        ''' Compare memory and accumulator '''
-        addr = eval("self."+mode+"(obj)")
-        obj.flag_c = obj.reg_a >= addr
-        obj.flag_z = bool(not (obj.reg_a - addr))
-        obj.flag_n = bool(int(format(obj.reg_a, '#010b')[2]))
-
-    def cpx(self, obj, mode):
-        ''' Compare Register X '''
-        addr = eval("self."+mode+"(obj)")
-        obj.flag_c = obj.reg_x >= addr
-        obj.flag_z = bool(not (obj.reg_x - addr))
-        obj.flag_n = bool(int(format(obj.reg_x, '#010b')[2]))
-
-    def cpy(self, obj, mode):
-        ''' Compare Register Y '''
-        addr = eval("self."+mode+"(obj)")
-        obj.flag_c = obj.reg_y >= addr
-        obj.flag_z = bool(not (obj.reg_y - addr))
-        obj.flag_n = bool(int(format(obj.reg_y, '#010b')[2]))
-
-    def dex(self, obj, mode):
-        ''' Increment register X '''
-        obj.reg_x -= 0x01
-        self.check(obj, 'zero', obj.reg_x)
-        self.check(obj, 'neg', obj.reg_x)
-    
-    def inx(self, obj, mode):
-        ''' Increment register X '''
-        obj.reg_x += 0x01
-        self.check(obj, 'zero', obj.reg_x)
-        self.check(obj, 'neg', obj.reg_x)
-
     def jmp(self, obj, mode):
         ''' Jump to address '''
-        obj.program_counter = eval("self."+mode+"(obj)")
+        obj.program_counter = self.get(obj, mode)
 
     def jsr(self, obj, mode):
         ''' Jump to subroutine '''
@@ -182,56 +323,10 @@ class Set:
         obj.stack_pointer -= 0x01
         obj.program_counter = obj.fetch_word()
 
-    def lda(self, obj, mode):
-        ''' Load register A '''
-        obj.reg_a = eval("self."+mode+"(obj)")
-        self.check(obj, 'zero', obj.reg_a)
-        self.check(obj, 'neg', obj.reg_a)
-
-    def ldx(self, obj, mode):
-        ''' Load register X '''
-        obj.reg_x = eval("self."+mode+"(obj)")
-        self.check(obj, 'zero', obj.reg_x)
-        self.check(obj, 'neg', obj.reg_x)
-
-    def ldy(self, obj, mode):
-        ''' Load register Y '''
-        obj.reg_y = eval("self."+mode+"(obj)")
-        self.check(obj, 'zero', obj.reg_y)
-        self.check(obj, 'neg', obj.reg_y)
-
-    def lsr(self, obj, mode):
-        ''' Logical shift right '''
-        if mode == 'acc':
-            obj.reg_a = eval("self."+mode+"(obj)") >> 1
-        elif mode == 'abs':
-            addr = obj.fetch_word()
-            obj.write_word(addr, obj.read_byte(addr) >> 1)
-        elif mode == 'zp':
-            addr = obj.fetch_byte()
-            obj.write_byte(addr, obj.read_byte(addr) >> 1)
-        else:
-            print(f'unknown mode {mode}')
-            input()
-
-    def nop(self, obj, mode):
-        ''' No operations '''
-        obj.cycles += 1
-
-    def ora(self, obj, mode):
-        ''' Logical inclusive OR '''
-        obj.reg_a = obj.reg_a | eval("self."+mode+"(obj)")
-        self.check(obj, 'zero', obj.reg_a)
-        self.check(obj, 'neg', obj.reg_a)
-
-    def rol(self, obj, mode):
-        ''' Rotate bits to the left '''
-        addr = eval("self."+mode+"(obj)")
-        bit = int(format(addr, '#010b')[2])
-        obj.reg_a = obj.reg_a << 1
-        obj.reg_a += bit
-        self.check(obj, 'zero', obj.reg_a)
-        self.check(obj, 'neg', obj.reg_a)
+    def rti(self, obj, mode):
+        ''' To be implemented '''
+        print('RTI not implemented')
+        input()
 
     def rts(self, obj, mode):
         ''' Return from subroutine '''
@@ -239,45 +334,86 @@ class Set:
         obj.program_counter = obj.read_word(obj.stack_pointer+0x100)+0x01
         obj.stack_pointer += 0x01
 
-    def sbc(self, obj, mode):
-        ''' Subtract with borrow '''
-        addr = eval("self."+mode+"(obj)")
-        obj.reg_a -= addr
+    ''' Section 9: Branching '''
 
+    def bcc(self, obj, mode):
+        ''' Branch on clear carry '''
+        addr = obj.fetch_byte() - 0x80
+        if not obj.flag_c:
+            obj.program_counter += addr
+
+    def bcs(self, obj, mode):
+        ''' Branch on carry set '''
+        addr = obj.fetch_byte() - 0x80
+        if obj.flag_c:
+            obj.program_counter += addr
+
+    def beq(self, obj, mode):
+        ''' Branch on equal (zero)'''
+        addr = obj.fetch_byte() - 0x80
+        if obj.flag_z:
+            obj.program_counter += addr
+
+    def bmi(self, obj, mode):
+        ''' Branch on negative '''
+        addr = obj.fetch_byte() - 0x80
+        if obj.flag_n:
+            obj.program_counter += addr
+
+    def bne(self, obj, mode):
+        ''' Branch on result not zero (not equal) '''
+        addr = obj.fetch_byte() - 0x80
+        if not obj.flag_z:
+            obj.program_counter += addr
+
+    def bpl(self, obj, mode):
+        ''' Branch on not negative '''
+        addr = obj.fetch_byte() - 0x80
+        if not obj.flag_n:
+            obj.program_counter += addr
+
+    def bvc(self, obj, mode):
+        ''' Branch on overflow clear '''
+        addr = obj.fetch_byte() - 0x80
+        if not obj.flag_v:
+            obj.program_counter += addr
+
+    def bvs(self, obj, mode):
+        ''' Branch on overflow set '''
+        addr = obj.fetch_byte() - 0x80
+        if obj.flag_v:
+            obj.program_counter += addr
+
+    ''' Section 10: Flags & NOP'''
+
+    def clc(self, obj, mode):
+        ''' Clear carry flag '''
+        obj.flag_c = False
+
+    def cld(self, obj, mode):
+        ''' Clear decimal flag '''
+        obj.flag_d = False
+
+    def cli(self, obj, mode):
+        ''' Clear interupt disable '''
+        obj.flag_i = False
+
+    def clv(self, obj, mode):
+        ''' Clear overflow flag '''
+        obj.flag_v = False
 
     def sec(self, obj, mode):
         ''' Set carry flag '''
         obj.flag_c = True
 
-    def sta(self, obj, mode):
-        ''' Store register A '''
-        obj.write_byte(eval("self."+mode+"(obj, 'write')"), obj.reg_a)
+    def sed(self, obj, mode):
+        ''' Set decimal mode '''
+        obj.flag_d = True
 
-    def tax(self, obj, mode):
-        ''' Transfer A to X '''
-        obj.reg_x = obj.reg_a
-        self.check(obj, 'zero', obj.reg_x)
-        self.check(obj, 'neg', obj.reg_x)
+    def sei(self, obj, mode):
+        ''' Set interupt disable '''
+        obj.flag_i = True
 
-    def txa(self, obj, mode):
-        ''' Transfer X to A '''
-        obj.reg_a = obj.reg_x
-        self.check(obj, 'zero', obj.reg_a)
-        self.check(obj, 'neg', obj.reg_a)
-
-    ''' Illegal instructions '''
-
-    def rra(self, obj, mode):
-        ''' Rotate right + add with carry '''
-        addr = eval("self."+mode+"(obj)")
-        bit = int(format(addr, '#010b')[2])
-        obj.reg_a += addr << 1
-        obj.reg_a += bit
-        self.check(obj, 'carry', obj.reg_a)
-        self.check(obj, 'zero', obj.reg_a)
-        self.check(obj, 'neg', obj.reg_a)
-
-    def slo(self, obj, mode):
-        ''' Arithmetic shift left + bitwise OR '''
-        addr = eval("self."+mode+"(obj)")
-        obj.reg_a = obj.reg_a | (addr << 1)
+    def nop(self, obj, mode):
+        ''' No operations '''
+        obj.cycles += 1

@@ -27,10 +27,14 @@ class Memory:
 
     def __getitem__(self, address: int):
         ''' Get the value at address. '''
+        # if 0x0000 < address > self.size:
+        #    raise ValueError("Memory address is not valid")
         return self.memory[address]
 
     def __setitem__(self, address: int, value: int):
         ''' set address to value. '''
+        if 0x0000 < address > self.size:
+            raise ValueError("Memory address is not valid")
         if value.bit_length() > 8:
             raise ValueError("Value too large")
         self.memory[address] = value

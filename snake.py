@@ -41,9 +41,10 @@ def main():
     cpu.stack_pointer = 0xff
 
     done = False
-    while not done:
+    k=0
+    while k<91:
         cpu.exec(1)
-
+        k+=1   
         # Random number generator
         cpu.memory[0x00fe] = np.random.randint(255)
 
@@ -69,19 +70,29 @@ def main():
 
         
         print(
-            f"Register A: {hex(cpu.reg_a)}. Register X: {hex(cpu.reg_x)}. Clock cycles: {cpu.cycles}. Program counter: {hex(cpu.program_counter)}. Stack pointer: {hex(cpu.stack_pointer)}")
+            f"Register A: {hex(cpu.reg_a)}. Register X: {hex(cpu.reg_x)}. Steps: {k}. Program counter: {hex(cpu.program_counter)}. Stack pointer: {hex(cpu.stack_pointer)}")
         print("N V B D I Z C")
         print(int(cpu.flag_n), int(cpu.flag_v), int(cpu.flag_b), int(
             cpu.flag_d), int(cpu.flag_i), int(cpu.flag_z), int(cpu.flag_c))
-        print("Zero page:")
-        for j in range(16):
-            addr = j*16
-            print(f"{hex(addr)}:", [''.join('{:02X}').format(i)
-                  for i in cpu.memory[addr:addr+16]])
-        print("Stack:")
-        for j in range(16):
-            addr = j*16+0x100
-            print(f"{hex(addr)}:", [''.join('{:02X}').format(i)
-                  for i in cpu.memory[addr:addr+16]])
-        input()
         
+        #print("Zero page:")
+        #for j in range(16):
+        #    addr = j*16
+        #    print(f"{hex(addr)}:", [''.join('{:02X}').format(i)
+        #          for i in cpu.memory[addr:addr+16]])
+        #print("Stack:")
+        #for j in range(16):
+        #    addr = j*16+0x100
+        #    print(f"{hex(addr)}:", [''.join('{:02X}').format(i)
+        #          for i in cpu.memory[addr:addr+16]])
+        
+        #print("Video memory:")
+        #for j in range(64):
+        #    addr = j*16+0x0200
+        #    print(f"{hex(addr)}:", [''.join('{:02X}').format(i)
+        #          for i in cpu.memory[addr:addr+16]])
+        #input()
+
+
+
+

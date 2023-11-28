@@ -224,9 +224,12 @@ class Set:
         value = self.get(obj, mode)
         n = int(format(value, '08b')[-8])
         m = int(format(obj.reg_a, '08b')[-8])
-        if value > 0xff:
+        obj.reg_a = obj.reg_a + value
+        if obj.reg_a > 0xff:
+            obj.reg_a -= 0x100
             obj.flag_c = True
-        obj.reg_a += value
+        else:
+            obj.flag_c = False
         # obj.flag_v = (not m & not n & not obj.flag_c) | (m & n & ! obj.flag_c)
         obj.flag_n = bool(int(format(obj.reg_a, '08b')[-8]))
 
@@ -338,49 +341,65 @@ class Set:
 
     def bcc(self, obj, mode):
         ''' Branch on clear carry '''
-        addr = obj.fetch_byte() - 0x80
+        addr = obj.fetch_byte()
+        if addr > 0x80:
+            addr -= 0x100
         if not obj.flag_c:
             obj.program_counter += addr
 
     def bcs(self, obj, mode):
         ''' Branch on carry set '''
-        addr = obj.fetch_byte() - 0x80
+        addr = obj.fetch_byte()
+        if addr > 0x80:
+            addr -= 0x100
         if obj.flag_c:
             obj.program_counter += addr
 
     def beq(self, obj, mode):
         ''' Branch on equal (zero)'''
-        addr = obj.fetch_byte() - 0x80
+        addr = obj.fetch_byte()
+        if addr > 0x80:
+            addr -= 0x100
         if obj.flag_z:
             obj.program_counter += addr
 
     def bmi(self, obj, mode):
         ''' Branch on negative '''
-        addr = obj.fetch_byte() - 0x80
+        addr = obj.fetch_byte()
+        if addr > 0x80:
+            addr -= 0x100
         if obj.flag_n:
             obj.program_counter += addr
 
     def bne(self, obj, mode):
         ''' Branch on result not zero (not equal) '''
-        addr = obj.fetch_byte() - 0x80
+        addr = obj.fetch_byte()
+        if addr > 0x80:
+            addr -= 0x100
         if not obj.flag_z:
             obj.program_counter += addr
 
     def bpl(self, obj, mode):
         ''' Branch on not negative '''
-        addr = obj.fetch_byte() - 0x80
+        addr = obj.fetch_byte()
+        if addr > 0x80:
+            addr -= 0x100
         if not obj.flag_n:
             obj.program_counter += addr
 
     def bvc(self, obj, mode):
         ''' Branch on overflow clear '''
-        addr = obj.fetch_byte() - 0x80
+        addr = obj.fetch_byte()
+        if addr > 0x80:
+            addr -= 0x100
         if not obj.flag_v:
             obj.program_counter += addr
 
     def bvs(self, obj, mode):
         ''' Branch on overflow set '''
-        addr = obj.fetch_byte() - 0x80
+        addr = obj.fetch_byte()
+        if addr > 0x80:
+            addr -= 0x100
         if obj.flag_v:
             obj.program_counter += addr
 

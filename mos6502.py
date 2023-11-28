@@ -69,8 +69,8 @@ class Processor:
     def reset(self):
         ''' Reset processor. Program counter is initialized to FCE2 and
             stack counter to 01FD. '''
-        self.program_counter = 0xfce2  # Hardcoded start vector post-reset
-        self.stack_pointer = 0x01fd  # Hardcoded stack pointer post-reset
+        self.program_counter = 0x0600  # Hardcoded start vector post-reset
+        self.stack_pointer = 0x0ff  # Hardcoded stack pointer post-reset
         self.cycles = 0
         self.flag_i = False
         self.flag_d = False
@@ -220,7 +220,8 @@ cpu.program_counter = 0x0600
 '''
 
 mem = Memory()
-mem = load(mem, 0x0600, [0xa9, 0xc0, 0xaa, 0xe8, 0x69, 0xc4, 0x00])
+mem = load(mem, 0x0600, [0xa2, 0x08, 0xca, 0x8e, 0x00,
+           0x02, 0xe0, 0x03, 0xd0, 0xf8, 0x8e, 0x01, 0x02, 0x00])
 cpu = Processor(mem)
 cpu.reset()
 cpu.program_counter = 0x0600
@@ -236,4 +237,3 @@ while True:
     print("NV-BDIZC")
     print(f"{int(cpu.flag_n)}{int(cpu.flag_v)}1{int(cpu.flag_b)}{int(cpu.flag_d)}{int(cpu.flag_i)}{int(cpu.flag_z)}{int(cpu.flag_c)}")
     input()
-

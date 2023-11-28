@@ -46,7 +46,7 @@ def main():
         cpu.exec(1)
         k += 1
         # Random number generator
-        cpu.memory[0x00fe] = np.random.randint(255)
+        # cpu.memory[0x00fe] = np.random.randint(255)
 
         # Draw screen
         surface = pygame.surfarray.make_surface(

@@ -56,6 +56,9 @@ def main():
         screen.blit(surface, (0, 0))
 
         # Get player input
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                cpu.flag_b = False
         key = pygame.key.get_pressed()
         if key[pygame.K_LEFT]:
             cpu.memory[0xff] = 0x08
@@ -66,7 +69,6 @@ def main():
         elif key[pygame.K_DOWN]:
             cpu.memory[0xff] = 0x04
 
-        print(cpu.memory[0xff])
         # Update and wait for next clock cycle
         pygame.display.update()
         # clock.tick(60)

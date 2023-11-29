@@ -217,7 +217,7 @@ mem = load(mem, 0x0600, [0x20, 0x06, 0x06, 0x20, 0x38, 0x06, 0x20, 0x0d, 0x06, 0
 cpu = Processor(mem)
 cpu.reset()
 cpu.program_counter = 0x0600
-'''
+
 
 mem = Memory()
 mem = load(mem, 0x0600, [0xa2, 0x08, 0xca, 0x8e, 0x00,
@@ -237,3 +237,4 @@ while True:
     print("NV-BDIZC")
     print(f"{int(cpu.flag_n)}{int(cpu.flag_v)}1{int(cpu.flag_b)}{int(cpu.flag_d)}{int(cpu.flag_i)}{int(cpu.flag_z)}{int(cpu.flag_c)}")
     input()
+'''

@@ -42,15 +42,17 @@ def main():
 
     done = False
     k = 0
-    while k < 91:
+    while cpu.flag_b:
         cpu.exec(1)
         k += 1
+
         # Random number generator
-        # cpu.memory[0x00fe] = np.random.randint(255)
+        cpu.memory[0x00fe] = np.random.randint(255)
 
         # Draw screen
-        surface = pygame.surfarray.make_surface(
-            np.array(cpu.memory[0x0200:0x0600]).reshape(32, 32))
+        vmem = np.array([[cpu.memory[0x0200+(a//10)*32+(b//10)]
+                        for a in range(320)] for b in range(320)])
+        surface = pygame.surfarray.make_surface(vmem)
         screen.blit(surface, (0, 0))
 
         # Get player input
@@ -64,27 +66,32 @@ def main():
         elif key[pygame.K_DOWN]:
             cpu.memory[0xff] = 0x04
 
+        print(cpu.memory[0xff])
         # Update and wait for next clock cycle
         pygame.display.update()
-        clock.tick(60)
+        # clock.tick(60)
 
-        print(
-            f"Register A: {hex(cpu.reg_a)}. Register X: {hex(cpu.reg_x)}. Steps: {k}. Program counter: {hex(cpu.program_counter)}. Stack pointer: {hex(cpu.stack_pointer)}")
-        print("N V B D I Z C")
-        print(int(cpu.flag_n), int(cpu.flag_v), int(cpu.flag_b), int(
-            cpu.flag_d), int(cpu.flag_i), int(cpu.flag_z), int(cpu.flag_c))
+        '''
+        print("Cycle: ", k)
+        print("A: ", hex(cpu.reg_a))
+        print("X: ", hex(cpu.reg_x))
+        print("Y: ", hex(cpu.reg_y))
+        print("PC:", hex(cpu.program_counter))
+        print("SP:", hex(cpu.stack_pointer))
+        print("NV-BDIZC")
+        print(f"{int(cpu.flag_n)}{int(cpu.flag_v)}1{int(cpu.flag_b)}{int(cpu.flag_d)}{int(cpu.flag_i)}{int(cpu.flag_z)}{int(cpu.flag_c)}")
 
-        # print("Zero page:")
-        # for j in range(16):
-        #    addr = j*16
-        #    print(f"{hex(addr)}:", [''.join('{:02X}').format(i)
-        #          for i in cpu.memory[addr:addr+16]])
-        # print("Stack:")
-        # for j in range(16):
-        #    addr = j*16+0x100
-        #    print(f"{hex(addr)}:", [''.join('{:02X}').format(i)
-        #          for i in cpu.memory[addr:addr+16]])
-
+        print("Zero page:")
+        for j in range(16):
+            addr = j*16
+            print(f"{hex(addr)}:", [''.join('{:02X}').format(i)
+                  for i in cpu.memory[addr:addr+16]])
+        print("Stack:")
+        for j in range(16):
+            addr = j*16+0x100
+            print(f"{hex(addr)}:", [''.join('{:02X}').format(i)
+                  for i in cpu.memory[addr:addr+16]])
+        '''
         # print("Video memory:")
         # for j in range(64):
         #    addr = j*16+0x0200

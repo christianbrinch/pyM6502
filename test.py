@@ -14,25 +14,26 @@ def main():
     clock = pygame.time.Clock()
 
     mem = mos6502.Memory()
-    mem = mos6502.load(mem, 0x0600, [0xa2, 0x08, 0xca, 0x8e, 0x00,
-           0x02, 0xe0, 0x03, 0xd0, 0xf8, 0x8e, 0x01, 0x02, 0x00])
+    mem = mos6502.load(
+        mem, 0x0600, [0xa9, 0x03, 0x4c, 0x08, 0x06, 0x00, 0x00, 0x00, 0x8d, 0x00, 0x02])
     cpu = mos6502.Processor(mem)
     cpu.reset()
 
     done = False
     k = 0
-    while True:
+    while cpu.flag_b:
         cpu.exec(1)
         k += 1
-       
+
         # Random number generator
         # cpu.memory[0x00fe] = np.random.randint(255)
 
         # Draw screen
-        vmem = np.array([[cpu.memory[0x0200+(a//10)*32+(b//10)]  for a in range(320)] for b in range(320)])
+        vmem = np.array([[cpu.memory[0x0200+(a//10)*32+(b//10)]
+                        for a in range(320)] for b in range(320)])
         surface = pygame.surfarray.make_surface(vmem)
         screen.blit(surface, (0, 0))
-        
+
         # Get player input
         key = pygame.key.get_pressed()
         if key[pygame.K_LEFT]:
@@ -55,7 +56,7 @@ def main():
         print("SP:", hex(cpu.stack_pointer))
         print("NV-BDIZC")
         print(f"{int(cpu.flag_n)}{int(cpu.flag_v)}1{int(cpu.flag_b)}{int(cpu.flag_d)}{int(cpu.flag_i)}{int(cpu.flag_z)}{int(cpu.flag_c)}")
- 
+
         # print("Zero page:")
         # for j in range(16):
         #    addr = j*16
@@ -67,9 +68,9 @@ def main():
         #    print(f"{hex(addr)}:", [''.join('{:02X}').format(i)
         #          for i in cpu.memory[addr:addr+16]])
 
-        #print("Video memory:")
-        #for j in range(64):
+        # print("Video memory:")
+        # for j in range(64):
         #   addr = j*16+0x0200
         #   print(f"{hex(addr)}:", [''.join('{:02X}').format(i)
         #         for i in cpu.memory[addr:addr+16]])
-        input()
+        # input()

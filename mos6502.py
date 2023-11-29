@@ -161,8 +161,8 @@ class Processor:
 
     def exec(self, cycles: int = 0):
         opcode = self.fetch_byte()
-        print("self.ins." + self.OPCODEs[opcode] +
-              "(self, \"" + self.ADDRESSING[opcode] + "\")")
+        # print("self.ins." + self.OPCODEs[opcode] +
+        #      "(self, \"" + self.ADDRESSING[opcode] + "\")")
         eval("self.ins." + self.OPCODEs[opcode] +
              "(self, \"" + self.ADDRESSING[opcode] + "\")")
 

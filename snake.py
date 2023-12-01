@@ -1,6 +1,7 @@
 import pygame
 import numpy as np
 import mos6502
+import time
 from importlib import reload
 
 reload(mos6502)
@@ -43,6 +44,7 @@ def main():
     done = False
     k = 0
     while cpu.flag_b:
+
         cpu.exec(1)
         k += 1
 
@@ -50,10 +52,11 @@ def main():
         cpu.memory[0x00fe] = np.random.randint(255)
 
         # Draw screen
-        vmem = np.array([[cpu.memory[0x0200+(a//10)*32+(b//10)]
-                        for a in range(320)] for b in range(320)])
-        surface = pygame.surfarray.make_surface(vmem)
-        screen.blit(surface, (0, 0))
+        if k % 100 == 0:
+            vmem = np.array([[cpu.memory[0x0200+(a//10)*32+(b//10)]
+                            for a in range(320)] for b in range(320)])
+            surface = pygame.surfarray.make_surface(vmem)
+            screen.blit(surface, (0, 0))
 
         # Get player input
         for event in pygame.event.get():

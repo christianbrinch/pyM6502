@@ -348,7 +348,8 @@ class Set:
         obj.program_counter = self.put(obj, mode)
 
     def jsr(self, obj, mode):
-        ''' Jump to subroutine '''
+        ''' Jump to subroutine: 6 cycles '''
+        obj.cycles += 1
         obj.stack_pointer -= 0x01
         obj.write_word(obj.stack_pointer+0x100, obj.program_counter+0x01)
         obj.stack_pointer -= 0x01
@@ -360,7 +361,8 @@ class Set:
         input()
 
     def rts(self, obj, mode):
-        ''' Return from subroutine '''
+        ''' Return from subroutine: 6 cycles '''
+        obj.cycles += 3
         obj.stack_pointer += 0x01
         obj.program_counter = obj.read_word(obj.stack_pointer+0x100)+0x01
         obj.stack_pointer += 0x01
@@ -435,30 +437,37 @@ class Set:
 
     def clc(self, obj, mode):
         ''' Clear carry flag '''
+        obj.cycles += 1
         obj.flag_c = False
 
     def cld(self, obj, mode):
         ''' Clear decimal flag '''
+        obj.cycles += 1
         obj.flag_d = False
 
     def cli(self, obj, mode):
         ''' Clear interupt disable '''
+        obj.cycles += 1
         obj.flag_i = False
 
     def clv(self, obj, mode):
         ''' Clear overflow flag '''
+        obj.cycles += 1
         obj.flag_v = False
 
     def sec(self, obj, mode):
         ''' Set carry flag '''
+        obj.cycles += 1
         obj.flag_c = True
 
     def sed(self, obj, mode):
         ''' Set decimal mode '''
+        obj.cycles += 1
         obj.flag_d = True
 
     def sei(self, obj, mode):
         ''' Set interupt disable '''
+        obj.cycles += 1
         obj.flag_i = True
 
     def nop(self, obj, mode):

@@ -44,8 +44,16 @@ def main():
     done = False
     k = 0
     while cpu.flag_b:
-
+        s = time.time()
+        cs = cpu.cycles
         cpu.exec(1)
+        ce = cpu.cycles
+        e = time.time()
+        print(f"Number of instructions: {k}")
+        print(
+            f"Number of clock cycles: {ce-cs:d} at 1 mHz: {(ce-cs)/1e6:.3e} seconds")
+        print(f"CPU exec time: {e-s:.3e} seconds")
+        print()
         k += 1
 
         # Random number generator
@@ -102,4 +110,4 @@ def main():
         #    addr = j*16+0x0200
         #    print(f"{hex(addr)}:", [''.join('{:02X}').format(i)
         #          for i in cpu.memory[addr:addr+16]])
-        # input()
+        input()

@@ -15,7 +15,7 @@ def main():
 
     mem = mos6502.Memory()
     mem = mos6502.load(
-        mem, 0x0600, [0xa9, 0x03, 0x4c, 0x08, 0x06, 0x00, 0x00, 0x00, 0x8d, 0x00, 0x02])
+        mem, 0x0600, [0xa9, 0x40, 0xe9, 0x80, 0x8d, 0x00, 0x00])
     cpu = mos6502.Processor(mem)
     cpu.reset()
 
@@ -57,11 +57,11 @@ def main():
         print("NV-BDIZC")
         print(f"{int(cpu.flag_n)}{int(cpu.flag_v)}1{int(cpu.flag_b)}{int(cpu.flag_d)}{int(cpu.flag_i)}{int(cpu.flag_z)}{int(cpu.flag_c)}")
 
-        # print("Zero page:")
-        # for j in range(16):
-        #    addr = j*16
-        #    print(f"{hex(addr)}:", [''.join('{:02X}').format(i)
-        #          for i in cpu.memory[addr:addr+16]])
+        print("Zero page:")
+        for j in range(16):
+           addr = j*16
+           print(f"{hex(addr)}:", [''.join('{:02X}').format(i)
+                 for i in cpu.memory[addr:addr+16]])
         # print("Stack:")
         # for j in range(16):
         #    addr = j*16+0x100

@@ -281,22 +281,26 @@ class Set:
         value = self.get(obj, mode)
         n = int(format(value, '08b')[-8])
         m = int(format(obj.reg_a, '08b')[-8])
-        obj.reg_a = obj.reg_a - value
-        if obj.reg_a < 0:
-            obj.reg_a += 0x100
+        obj.reg_a -= (value + int(not obj.flag_c))
+        if obj.reg_a >= 0:
             obj.flag_c = True
         else:
-            obj.reg_a = False
-        # obj.flag_v = obj.reg_a >= 0x80
+            obj.flag_c = False
+            #obj.flag_v = True
+            obj.reg_a += 0x100
+        if obj.reg_a > 0x80:
+            obj.flag_n = True
+        else:
+            obj.flag_n = False
         obj.flag_z = bool(not obj.reg_a)
-        obj.flag_n = bool(int(format(obj.reg_a, '08b')[-8]))
+     
 
     ''' Section 7: Incrementing instructions '''
 
     def dec(self, obj, mode):
         ''' Decrement memory by 1 '''
-        value = self.get(obj, mode)
         addr = self.put(obj, mode)
+        value = obj.read_byte(addr)
         value -= 1
         obj.write_byte(addr, value)
         obj.flag_z = bool(not value)

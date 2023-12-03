@@ -33,7 +33,7 @@ def main():
                                      0x10, 0xa9, 0x1f, 0x24, 0x10, 0xf0, 0x1f, 0x60, 0xa5, 0x10, 0x18, 0x69, 0x20, 0x85, 0x10, 0xb0,
                                      0x01, 0x60, 0xe6, 0x11, 0xa9, 0x06, 0xc5, 0x11, 0xf0, 0x0c, 0x60, 0xc6, 0x10, 0xa5, 0x10, 0x29,
                                      0x1f, 0xc9, 0x1f, 0xf0, 0x01, 0x60, 0x4c, 0x35, 0x07, 0xa0, 0x00, 0xa5, 0xfe, 0x91, 0x00, 0x60,
-                                     0xa6, 0x03, 0xa9, 0x00, 0x81, 0x10, 0xa2, 0x00, 0xa9, 0x01, 0x81, 0x10, 0x60, 0xa2, 0x00, 0xea,
+                                     0xa6, 0x03, 0xa9, 0x00, 0x81, 0x10, 0xa2, 0x00, 0xa9, 0x01, 0x81, 0x10, 0x60, 0xa2, 0x25, 0xea,
                                      0xea, 0xca, 0xd0, 0xfb, 0x60])
 
     cpu = mos6502.Processor(mem)
@@ -44,16 +44,7 @@ def main():
     done = False
     k = 0
     while cpu.flag_b:
-        s = time.time()
-        cs = cpu.cycles
         cpu.exec(1)
-        ce = cpu.cycles
-        e = time.time()
-        print(f"Number of instructions: {k}")
-        print(
-            f"Number of clock cycles: {ce-cs:d} at 1 mHz: {(ce-cs)/1e6:.3e} seconds")
-        print(f"CPU exec time: {e-s:.3e} seconds")
-        print()
         k += 1
 
         # Random number generator
@@ -70,35 +61,38 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 cpu.flag_b = False
-        key = pygame.key.get_pressed()
-        if key[pygame.K_LEFT]:
-            cpu.memory[0xff] = 0x08
-        elif key[pygame.K_RIGHT]:
-            cpu.memory[0xff] = 0x02
-        elif key[pygame.K_UP]:
-            cpu.memory[0xff] = 0x01
-        elif key[pygame.K_DOWN]:
-            cpu.memory[0xff] = 0x04
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_LEFT:
+                    cpu.memory[0x00ff] = 0x61
+                elif event.key == pygame.K_RIGHT:
+                    cpu.memory[0x00ff] = 0x64
+                elif event.key == pygame.K_UP:
+                    cpu.memory[0x00ff] = 0x77
+                elif event.key == pygame.K_DOWN:
+                    cpu.memory[0x00ff] = 0x73
 
         # Update and wait for next clock cycle
         pygame.display.update()
-        # clock.tick(60)
+        #clock.tick(60)
 
+         
+        #print("Cycle: ", k)
+        #print("A: ", hex(cpu.reg_a))
+        #print("X: ", hex(cpu.reg_x))
+        #print("Y: ", hex(cpu.reg_y))
+        #print("PC:", hex(cpu.program_counter))
+        #print("SP:", hex(cpu.stack_pointer))
+        #print("NV-BDIZC")
+        #print(f"{int(cpu.flag_n)}{int(cpu.flag_v)}1{int(cpu.flag_b)}{int(cpu.flag_d)}{int(cpu.flag_i)}{int(cpu.flag_z)}{int(cpu.flag_c)}")
+        
+        
+        
+        #print("Zero page:")
+        #for j in range(16):
+        #    addr = j*16
+        #    print(f"{hex(addr)}:", [''.join('{:02X}').format(i)
+        #          for i in cpu.memory[addr:addr+16]])
         '''
-        print("Cycle: ", k)
-        print("A: ", hex(cpu.reg_a))
-        print("X: ", hex(cpu.reg_x))
-        print("Y: ", hex(cpu.reg_y))
-        print("PC:", hex(cpu.program_counter))
-        print("SP:", hex(cpu.stack_pointer))
-        print("NV-BDIZC")
-        print(f"{int(cpu.flag_n)}{int(cpu.flag_v)}1{int(cpu.flag_b)}{int(cpu.flag_d)}{int(cpu.flag_i)}{int(cpu.flag_z)}{int(cpu.flag_c)}")
-
-        print("Zero page:")
-        for j in range(16):
-            addr = j*16
-            print(f"{hex(addr)}:", [''.join('{:02X}').format(i)
-                  for i in cpu.memory[addr:addr+16]])
         print("Stack:")
         for j in range(16):
             addr = j*16+0x100
@@ -110,4 +104,6 @@ def main():
         #    addr = j*16+0x0200
         #    print(f"{hex(addr)}:", [''.join('{:02X}').format(i)
         #          for i in cpu.memory[addr:addr+16]])
-        input()
+        #input()
+pygame.quit()
+

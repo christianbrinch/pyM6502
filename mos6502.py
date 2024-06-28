@@ -12,11 +12,14 @@ import sys
 import instructions
 from importlib import reload
 
+import colorama
+from colorama import Fore, Style
+
 reload(instructions)
 
 
 class Memory:
-    ''' Memory for the MOs-6502 '''
+    ''' Memory for the MOS-6502 '''
 
     def __init__(self, size: int = 65536):
         ''' Initialize the memory to size. Default to 64K bytes.'''
@@ -27,8 +30,8 @@ class Memory:
 
     def __getitem__(self, address: int):
         ''' Get the value at address. '''
-        # if 0x0000 < address > self.size:
-        #    raise ValueError("Memory address is not valid")
+        if 0x0000 < address > self.size:
+            raise ValueError("Memory address is not valid")
         return self.memory[address]
 
     def __setitem__(self, address: int, value: int):
@@ -42,15 +45,15 @@ class Memory:
 
 
 class Processor:
-    ''' The MOs-6502 processor '''
+    ''' The MOS-6502 processor '''
 
     def __init__(self, memory: Memory):
         ''' Initialize the CPU '''
 
         self.memory = memory
         self.reg_a = 0  # Accumulator A
-        self.reg_x = 0  # Incex register X
-        self.reg_y = 0  # Incex register Y
+        self.reg_x = 0  # Index register X
+        self.reg_y = 0  # Index register Y
 
         self.program_counter = 0  # Program counter
         self.stack_pointer = 0  # stack pointer
@@ -81,11 +84,9 @@ class Processor:
         self.flag_n = False
 
     def read_byte(self, address: int):
-        self.cycles += 1
         return self.memory[address]
 
     def write_byte(self, address: int, value: int):
-        self.cycles += 1
         self.memory[address] = value
 
     def read_word(self, address: int):
@@ -159,12 +160,43 @@ class Processor:
         "beq", "sbc", "nop", "isb", "nop", "sbc", "inc", "isb", "sed", "sbc", "nop", "isb", "nop", "sbc", "inc", "isb",  # F
     ]
 
-    def exec(self, cycles: int = 0):
+    def exec(self, cycles: int = 0, verbose=False, zeropage=False):
+        t = self.program_counter
         opcode = self.fetch_byte()
-        #print("self.ins." + self.OPCODEs[opcode] +
-        #      "(self, \"" + self.ADDRESSING[opcode] + "\")")
+        tmp = [t+k for k in range(self.program_counter-t)]
+
         eval("self.ins." + self.OPCODEs[opcode] +
              "(self, \"" + self.ADDRESSING[opcode] + "\")")
+        tmp = [t+k for k in range(self.program_counter-t)]
+
+        if verbose:
+            print(f"P.C.: {self.program_counter}, Reg A: 0x{self.reg_a:0>2x}, "
+                  f"Reg X: 0x{self.reg_x:0>2x}, Reg Y: 0x{self.reg_y:0>2x}, "
+                  f"Stack pointer: 0x{self.stack_pointer:0>2x}{' '*10}Flags: "
+                  f"{1 if self.flag_n==True else 0}"
+                  f"{1 if self.flag_v==True else 0}"
+                  f"0"
+                  f"{1 if self.flag_b==True else 0}"
+                  f"{1 if self.flag_d==True else 0}"
+                  f"{1 if self.flag_i==True else 0}"
+                  f"{1 if self.flag_z==True else 0}"
+                  f"{1 if self.flag_c==True else 0}"
+                  f"{' '*10}OPcode: 0x{opcode:0>2x}, {self.OPCODEs[opcode]}:{self.ADDRESSING[opcode]}")
+        if zeropage:
+            print(f"Zero page:{' '*52} 0x02 page:")
+            for j in range(16):
+                addr = j*16
+                print(f"0x{addr:0>2x}: ", end='')
+                for i in range(16):
+                    if addr+i in tmp:
+                        print(
+                            f'{Fore.RED}{self.memory[addr+i]:0>2x}{Style.RESET_ALL} ', end='')
+                    else:
+                        print(f'{self.memory[addr+i]:0>2x} ', end='')
+                print(f"{' '*9}", end='')
+                for i in range(16):
+                    print(f'{self.memory[512+addr+i]:0>2x} ', end='')
+                print('')
 
 
 def load(bank, address, program):

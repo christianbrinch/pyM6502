@@ -59,29 +59,30 @@ class Processor:
         self.stack_pointer = 0  # stack pointer
         self.cycles = 0  # Clock cycles
 
-        self.flag_c = True  # status flag - Carry Flag
-        self.flag_z = True  # status flag - Zero Flag
-        self.flag_i = True  # status flag - Interrupt Disable
-        self.flag_d = True  # status flag - Decimal Mode Flag
-        self.flag_b = True  # status flag - Break Command
-        self.flag_v = True  # status flag - Overflow Flag
-        self.flag_n = True  # status flag - Negative Flag
+        self.flag_n = False  # status flag - Negative Flag
+        self.flag_v = False  # status flag - Overflow Flag
+        self.flag_b = True   # status flag - Break Command
+        self.flag_d = False  # status flag - Decimal Mode Flag
+        self.flag_i = True   # status flag - Interrupt Disable
+        self.flag_z = True   # status flag - Zero Flag
+        self.flag_c = False  # status flag - Carry Flag
 
         self.ins = instructions.Set()
 
     def reset(self):
         ''' Reset processor. Program counter is initialized to FCE2 and
             stack counter to 01FD. '''
-        self.program_counter = 0x0600  # Hardcoded start vector post-reset
-        self.stack_pointer = 0x0ff  # Hardcoded stack pointer post-reset
+        self.program_counter = 0x0000  # Hardcoded start vector post-reset
+        self.stack_pointer = 0x0ff     # Hardcoded stack pointer post-reset
         self.cycles = 0
-        self.flag_i = False
-        self.flag_d = False
-        self.flag_b = True
-        self.flag_c = False
-        self.flag_v = False
-        self.flag_z = False
-        self.flag_n = False
+        self.flag_n = False            # Negative
+        self.flag_v = False            # Overflow
+
+        self.flag_b = True             #
+        self.flag_d = False            # Decimal
+        self.flag_i = True             # Interrupt disable
+        self.flag_z = True             # Zero
+        self.flag_c = False            # Carry
 
     def read_byte(self, address: int):
         return self.memory[address]
@@ -170,12 +171,12 @@ class Processor:
         tmp = [t+k for k in range(self.program_counter-t)]
 
         if verbose:
-            print(f"P.C.: {self.program_counter}, Reg A: 0x{self.reg_a:0>2x}, "
+            print(f"P.C.: {self.program_counter:0>2x}, Reg A: 0x{self.reg_a:0>2x}, "
                   f"Reg X: 0x{self.reg_x:0>2x}, Reg Y: 0x{self.reg_y:0>2x}, "
                   f"Stack pointer: 0x{self.stack_pointer:0>2x}{' '*10}Flags: "
                   f"{1 if self.flag_n==True else 0}"
                   f"{1 if self.flag_v==True else 0}"
-                  f"0"
+                  f"1"
                   f"{1 if self.flag_b==True else 0}"
                   f"{1 if self.flag_d==True else 0}"
                   f"{1 if self.flag_i==True else 0}"
@@ -195,7 +196,7 @@ class Processor:
                         print(f'{self.memory[addr+i]:0>2x} ', end='')
                 print(f"{' '*9}", end='')
                 for i in range(16):
-                    print(f'{self.memory[512+addr+i]:0>2x} ', end='')
+                    print(f'{self.memory[512+addr+i-16]:0>2x} ', end='')
                 print('')
 
 

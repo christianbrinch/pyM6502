@@ -28,9 +28,9 @@ class Set:
         elif mode == 'zpy':
             return obj.read_byte(obj.fetch_byte()+obj.reg_y)
         elif mode == 'inx':
-            return obj.read_word(obj.read_word(obj.fetch_byte()) + obj.reg_x)
+            return obj.read_byte(obj.read_word(obj.fetch_byte()) + obj.reg_x)
         elif mode == 'iny':
-            return obj.read_word(obj.read_word(obj.fetch_byte()) + obj.reg_y)
+            return obj.read_byte(obj.read_word(obj.fetch_byte()) + obj.reg_y)
 
     def put(self, obj, mode):
         if mode == 'abs':
@@ -220,13 +220,13 @@ class Set:
     def eor(self, obj, mode):
         ''' Binary Exclusive OR with accumulator ^'''
         obj.reg_a = obj.reg_a ^ self.get(obj, mode)
-        obj.flag_z = bool(obj.reg_a)
+        obj.flag_z = bool(not obj.reg_a)
         obj.flag_n = bool(int(format(obj.reg_a, '08b')[-8]))
 
     def ora(self, obj, mode):
         ''' Binary OR with accumulator | '''
         obj.reg_a = obj.reg_a | self.get(obj, mode)
-        obj.flag_z = bool(obj.reg_a)
+        obj.flag_z = bool(not obj.reg_a)
         obj.flag_n = bool(int(format(obj.reg_a, '08b')[-8]))
 
     ''' Section 6: Arithmetic instructions '''
@@ -286,14 +286,13 @@ class Set:
             obj.flag_c = True
         else:
             obj.flag_c = False
-            #obj.flag_v = True
+            # obj.flag_v = True
             obj.reg_a += 0x100
         if obj.reg_a > 0x80:
             obj.flag_n = True
         else:
             obj.flag_n = False
         obj.flag_z = bool(not obj.reg_a)
-     
 
     ''' Section 7: Incrementing instructions '''
 
@@ -307,18 +306,24 @@ class Set:
         obj.flag_n = bool(int(format(value, '08b')[-8]))
 
     def dex(self, obj, mode):
-        ''' Increment register X '''
+        ''' Decrement register X '''
         obj.reg_x -= 0x01
         if obj.reg_x < 0:
-            obj.reg_x = 0xff
+            obj.flag_n = True
+            obj.reg_x = 0xff - (obj.reg_x + 1)
+        else:
+            obj.flag_n = False
         obj.flag_z = bool(not obj.reg_x)
-        obj.flag_n = bool(int(format(obj.reg_x, '08b')[-8]))
 
     def dey(self, obj, mode):
-        ''' Increment register Y '''
+        ''' Decrement register Y '''
         obj.reg_y -= 0x01
+        if obj.reg_y < 0:
+            obj.flag_n = True
+            obj.reg_y = 0xff - (obj.reg_y + 1)
+        else:
+            obj.flag_n = False
         obj.flag_z = bool(not obj.reg_y)
-        obj.flag_n = bool(int(format(obj.reg_y, '0b8')[-8]))
 
     def inc(self, obj, mode):
         ''' Increment memory by 1 '''

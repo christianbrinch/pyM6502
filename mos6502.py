@@ -1,4 +1,10 @@
-''' MOS-6502 memory emulation '''
+''' MOS-6502 memory emulation
+
+    Usage:
+        mem = Memory(file="path/to/bin/file")
+        cpu = Processor(mem)
+        cpu.exec(verbose=True, zeropage=True, mempage=128)
+'''
 
 __author__ = "Christian Brinch"
 __copyright__ = "Copyright 2023"
@@ -11,21 +17,20 @@ __email__ = "brinch.c@gmail.com"
 import sys
 import instructions
 from importlib import reload
-
-import colorama
 from colorama import Fore, Style
 
 reload(instructions)
 
-
 class Memory:
     ''' Memory for the MOS-6502 '''
 
-    def __init__(self, size: int = 65536):
+    def __init__(self, size: int = 65536, file: str = None, address: int = 0):
         ''' Initialize the memory to size. Default to 64K bytes.'''
 
         self.size = size
         self.memory = [0] * size
+        if file:
+            self.load_file(file, address)
         print(f"Memory initialized to {size} bytes.")
 
     def __getitem__(self, address: int):
@@ -42,6 +47,21 @@ class Memory:
             raise ValueError("Value too large")
         self.memory[address] = value
         return self.memory[address]
+
+    def load(self, program, address=0x0000):
+        ''' Load program into memory at address'''
+        for byte in program:
+            self[address] = byte
+            address += 0x01
+
+    def load_file(self, file, address=0x0000):
+        ''' Load program from file into memory at address
+            File should be a binary byte code file.
+        '''
+        f = open(file, mode='rb')
+        prog = f.read()
+        self.load(list(prog), address)
+        f.close()
 
 
 class Processor:
@@ -161,7 +181,7 @@ class Processor:
         "beq", "sbc", "nop", "isb", "nop", "sbc", "inc", "isb", "sed", "sbc", "nop", "isb", "nop", "sbc", "inc", "isb",  # F
     ]
 
-    def exec(self, cycles: int = 0, verbose=False, zeropage=False):
+    def exec(self, cycles: int = 0, output=False, zeropage=False, mempage=False):
         t = self.program_counter
         opcode = self.fetch_byte()
         tmp = [t+k for k in range(self.program_counter-t)]
@@ -170,10 +190,14 @@ class Processor:
              "(self, \"" + self.ADDRESSING[opcode] + "\")")
         tmp = [t+k for k in range(self.program_counter-t)]
 
-        if verbose:
-            print(f"P.C.: {self.program_counter:0>2x}, Reg A: 0x{self.reg_a:0>2x}, "
-                  f"Reg X: 0x{self.reg_x:0>2x}, Reg Y: 0x{self.reg_y:0>2x}, "
-                  f"Stack pointer: 0x{self.stack_pointer:0>2x}{' '*10}Flags: "
+        if output:
+            print()
+            print(f"{Fore.CYAN}PC{Style.RESET_ALL} {self.program_counter:0>4} "
+                  f"{Fore.CYAN}Reg A{Style.RESET_ALL} 0x{self.reg_a:0>2x} "
+                  f"{Fore.CYAN}Reg X{Style.RESET_ALL} 0x{self.reg_x:0>2x} "
+                  f"{Fore.CYAN}Reg Y{Style.RESET_ALL} 0x{self.reg_y:0>2x} "
+                  f"{Fore.CYAN}SP{Style.RESET_ALL} 0x{self.stack_pointer:0>2x}{' '*14}"
+                  f"{Fore.CYAN}NV-BDIZC{Style.RESET_ALL} "
                   f"{1 if self.flag_n==True else 0}"
                   f"{1 if self.flag_v==True else 0}"
                   f"1"
@@ -182,26 +206,29 @@ class Processor:
                   f"{1 if self.flag_i==True else 0}"
                   f"{1 if self.flag_z==True else 0}"
                   f"{1 if self.flag_c==True else 0}"
-                  f"{' '*10}OPcode: 0x{opcode:0>2x}, {self.OPCODEs[opcode]}:{self.ADDRESSING[opcode]}")
+                  f"{' '*11}"
+                  f"{Fore.CYAN}OPcode{Style.RESET_ALL} 0x{Fore.YELLOW}{opcode:0>2x}{Style.RESET_ALL} "
+                  f"{self.OPCODEs[opcode]}:{self.ADDRESSING[opcode]}")
+            print()
         if zeropage:
-            print(f"Zero page:{' '*52} 0x02 page:")
+            print(f"{Fore.CYAN}Zero page{Style.RESET_ALL}", end='')
+            if mempage:
+                print(f"{' '*52} {Fore.CYAN}Page{Style.RESET_ALL} 0x{mempage:0>4x}", end='')
+            print('')
             for j in range(16):
                 addr = j*16
-                print(f"0x{addr:0>2x}: ", end='')
+
+                print(f"{Fore.CYAN}0x{addr:0>2x}{Style.RESET_ALL} ", end='')
+
                 for i in range(16):
                     if addr+i in tmp:
                         print(
-                            f'{Fore.RED}{self.memory[addr+i]:0>2x}{Style.RESET_ALL} ', end='')
+                            f'{Fore.YELLOW}{self.memory[addr+i]:0>2x}{Style.RESET_ALL} ', end='')
                     else:
                         print(f'{self.memory[addr+i]:0>2x} ', end='')
                 print(f"{' '*9}", end='')
-                for i in range(16):
-                    print(f'{self.memory[512+addr+i-16]:0>2x} ', end='')
+                if mempage:
+                    for i in range(16):
+                        print(
+                            f'{self.memory[mempage+addr+i-16]:0>2x} ', end='')
                 print('')
-
-
-def load(bank, address, program):
-    for opc in program:
-        bank[address] = opc
-        address += 1
-    return bank

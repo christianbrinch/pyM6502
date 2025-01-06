@@ -11,45 +11,43 @@ __email__ = "brinch.c@gmail.com"
 
 class Set:
     ''' Addressing modes '''
+    def get_imm(self, obj):
+        return obj.fetch_byte()
+    def get_abs(self, obj):
+        return obj.read_byte(obj.fetch_word())
+    def get_abs(self, obj):
+        return obj.read_byte(obj.fetch_word())
+    def get_abx(self, obj):
+        return obj.read_byte(obj.fetch_word() + obj.reg_x)
+    def get_aby(self, obj):
+        return obj.read_byte(obj.fetch_word() + obj.reg_y)
+    def get_zp(self, obj):
+        return obj.read_byte(obj.fetch_byte())
+    def get_zpx(self, obj):
+        return obj.read_byte(obj.fetch_byte() + obj.reg_x)
+    def get_zpy(self, obj):
+        return obj.read_byte(obj.fetch_byte() + obj.reg_y)
+    def get_inx(self, obj):
+        return obj.read_byte(obj.read_word(obj.fetch_byte()) + obj.reg_x)
+    def get_iny(self, obj):
+        return obj.read_byte(obj.read_word(obj.fetch_byte()) + obj.reg_y)
 
-    def get(self, obj, mode):
-        if mode == 'imm':
-            return obj.fetch_byte()
-        elif mode == 'abs':
-            return obj.read_byte(obj.fetch_word())
-        elif mode == 'abx':
-            return obj.read_byte(obj.fetch_word()+obj.reg_x)
-        elif mode == 'aby':
-            return obj.read_byte(obj.fetch_word()+obj.reg_y)
-        elif mode == 'zp':
-            return obj.read_byte(obj.fetch_byte())
-        elif mode == 'zpx':
-            return obj.read_byte(obj.fetch_byte()+obj.reg_x)
-        elif mode == 'zpy':
-            return obj.read_byte(obj.fetch_byte()+obj.reg_y)
-        elif mode == 'inx':
-            return obj.read_byte(obj.read_word(obj.fetch_byte()) + obj.reg_x)
-        elif mode == 'iny':
-            return obj.read_byte(obj.read_word(obj.fetch_byte()) + obj.reg_y)
-
-    def put(self, obj, mode):
-        if mode == 'abs':
-            return obj.fetch_word()
-        if mode == 'abx':
-            return obj.fetch_word()+obj.reg_x
-        if mode == 'aby':
-            return obj.fetch_word()+obj.reg_y
-        elif mode == 'zp':
-            return obj.fetch_byte()
-        elif mode == 'zpx':
-            return obj.fetch_byte()+obj.reg_x
-        elif mode == 'zpy':
-            return obj.fetch_byte()+obj.reg_y
-        elif mode == 'inx':
-            return obj.read_word(obj.fetch_byte() + obj.reg_x)
-        elif mode == 'iny':
-            return obj.read_word(obj.fetch_byte() + obj.reg_y)
-
+    def put_abs(self, obj):
+        return obj.fetch_word()
+    def put_abx(self, obj):
+        return obj.fetch_word()+obj.reg_x
+    def put_aby(self, obj):
+        return obj.fetch_word()+obj.reg_y
+    def put_zp(self, obj):
+        return obj.fetch_byte()
+    def put_zpx(self, obj):
+        return obj.fetch_byte()+obj.reg_x
+    def put_zpy(self, obj):
+        return obj.fetch_byte()+obj.reg_y
+    def put_inx(self, obj):
+        return obj.read_word(obj.fetch_byte()) + obj.reg_x
+    def put_iny(self, obj):
+        return obj.read_word(obj.fetch_byte()) + obj.reg_y
     ''' 
         Instructions 
         Split into sections    
@@ -59,33 +57,34 @@ class Set:
 
     def lda(self, obj, mode):
         ''' Load register A '''
-        obj.reg_a = self.get(obj, mode)
+        obj.reg_a = eval("self.get_"+mode+"(obj)")
         obj.flag_z = bool(not obj.reg_a)
         obj.flag_n = bool(int(format(obj.reg_a, '08b')[-8]))
 
     def ldx(self, obj, mode):
         ''' Load register X '''
-        obj.reg_x = self.get(obj, mode)
+        obj.reg_x = eval("self.get_"+mode+"(obj)")
         obj.flag_z = bool(not obj.reg_x)
         obj.flag_n = bool(int(format(obj.reg_x, '08b')[-8]))
 
     def ldy(self, obj, mode):
         ''' Load register Y '''
-        obj.reg_y = self.get(obj, mode)
+        obj.reg_y = eval("self.get_"+mode+"(obj)")
         obj.flag_z = bool(not obj.reg_y)
         obj.flag_n = bool(int(format(obj.reg_y, '08b')[-8]))
 
     def sta(self, obj, mode):
         ''' Store register A '''
-        obj.write_byte(self.put(obj, mode), obj.reg_a)
+        obj.write_byte(eval("self.put_"+mode+"(obj)"), obj.reg_a)
+   
 
     def stx(self, obj, mode):
         ''' Store register X '''
-        obj.write_byte(self.put(obj, mode), obj.reg_x)
+        obj.write_byte(eval("self.put_"+mode+"(obj)"), obj.reg_x)
 
     def sty(self, obj, mode):
         ''' Store register Y '''
-        obj.write_byte(self.put(obj, mode), obj.reg_y)
+        obj.write_byte(eval("self.put_"+mode+"(obj)"), obj.reg_y)
 
     ''' Section 2: Transfer '''
 
@@ -145,9 +144,9 @@ class Set:
             value = max(value << 1, 0xff)
             obj.reg_a = value
         else:
-            value = self.get(obj, mode)
+            value = eval("self.get_"+mode+"(obj)")
             obj.flag_c = bool(int(format(value, '08b')[-8]))
-            addr = self.put(obj, mode)
+            addr = eval("self.put_"+mode+"(obj)")
             value = max(value << 1, 0xff)
             obj.write_byte(addr, value)
         obj.flag_n = bool(int(format(value, '08b')[-8]))
@@ -161,9 +160,9 @@ class Set:
             value = value >> 1
             obj.reg_a = value
         else:
-            value = self.get(obj, mode)
+            value = eval("self.get_"+mode+"(obj)")
             obj.flag_c = bool(int(format(value, '08b')[-1]))
-            addr = self.put(obj, mode)
+            addr = eval("self.put_"+mode+"(obj)")
             value = value >> 1
             obj.write_byte(addr, value)
         obj.flag_n = False
@@ -177,9 +176,9 @@ class Set:
             value = max((value << 1) + int(obj.flag_c), 0xff)
             obj.reg_a = value
         else:
-            value = self.get(obj, mode)
+            value = eval("self.get_"+mode+"(obj)")
             obj.flag_c = bool(int(format(value, '08b')[-8]))
-            addr = self.put(obj, mode)
+            addr = eval("self.put_"+mode+"(obj)")
             value = max((value << 1) + int(obj.flag_c), 0xff)
             obj.write_byte(addr, value)
         obj.flag_n = bool(int(format(value, '08b')[-8]))
@@ -194,10 +193,10 @@ class Set:
             value = max((value >> 1) + int(obj.flag_c)*0xf0, 0xff)
             obj.reg_a = value
         else:
-            value = self.get(obj, mode)
+            value = eval("self.get_"+mode+"(obj)")
             obj.flag_n = bool(int(format(value, '08b')[-8]))
             obj.flag_c = bool(int(format(value, '08b')[-1]))
-            addr = self.put(obj, mode)
+            addr = eval("self.put_"+mode+"(obj)")
             value = max((value >> 1) + int(obj.flag_c)*0xf0, 0xff)
             obj.write_byte(addr, value)
         obj.flag_z = bool(value)
@@ -206,26 +205,26 @@ class Set:
 
     def AND(self, obj, mode):
         ''' Logical AND with accumulator & '''
-        obj.reg_a = obj.reg_a & self.get(obj, mode)
+        obj.reg_a = obj.reg_a & eval("self.get_"+mode+"(obj)")
         obj.flag_z = bool(obj.reg_a)
         obj.flag_n = bool(int(format(obj.reg_a, '08b')[-8]))
 
     def bit(self, obj, mode):
         ''' Test bit in memory with accumulator '''
-        value = self.get(obj, mode)
+        value = eval("self.get_"+mode+"(obj)")
         obj.flag_n = bool(int(format(value, '08b')[-8]))
         obj.flag_v = bool(int(format(value, '08b')[-7]))
         obj.flag_z = bool(not (value & obj.reg_a))
 
     def eor(self, obj, mode):
         ''' Binary Exclusive OR with accumulator ^'''
-        obj.reg_a = obj.reg_a ^ self.get(obj, mode)
+        obj.reg_a = obj.reg_a ^ eval("self.get_"+mode+"(obj)")
         obj.flag_z = bool(not obj.reg_a)
         obj.flag_n = bool(int(format(obj.reg_a, '08b')[-8]))
 
     def ora(self, obj, mode):
         ''' Binary OR with accumulator | '''
-        obj.reg_a = obj.reg_a | self.get(obj, mode)
+        obj.reg_a = obj.reg_a | eval("self.get_"+mode+"(obj)")
         obj.flag_z = bool(not obj.reg_a)
         obj.flag_n = bool(int(format(obj.reg_a, '08b')[-8]))
 
@@ -233,7 +232,7 @@ class Set:
 
     def adc(self, obj, mode):
         ''' Add with carry '''
-        value = self.get(obj, mode)
+        value = eval("self.get_"+mode+"(obj)")
         n = int(format(value, '08b')[-8])
         m = int(format(obj.reg_a, '08b')[-8])
         obj.reg_a = obj.reg_a + value
@@ -248,7 +247,7 @@ class Set:
 
     def cmp(self, obj, mode):
         ''' Compare memory and accumulator '''
-        value = self.get(obj, mode)
+        value = eval("self.get_"+mode+"(obj)")
         obj.flag_c = obj.reg_a >= value
         obj.flag_z = bool(not (obj.reg_a - value))
         if obj.reg_a - value < 0:
@@ -258,7 +257,7 @@ class Set:
 
     def cpx(self, obj, mode):
         ''' Compare Register X '''
-        value = self.get(obj, mode)
+        value = eval("self.get_"+mode+"(obj)")
         obj.flag_c = obj.reg_x >= value
         obj.flag_z = bool(not (obj.reg_x - value))
         if obj.reg_x - value < 0:
@@ -268,7 +267,7 @@ class Set:
 
     def cpy(self, obj, mode):
         ''' Compare Register Y '''
-        value = self.get(obj, mode)
+        value = eval("self.get_"+mode+"(obj)")
         obj.flag_c = obj.reg_y >= value
         obj.flag_z = bool(not (obj.reg_y - value))
         if obj.reg_y - value < 0:
@@ -278,7 +277,7 @@ class Set:
 
     def sbc(self, obj, mode):
         ''' Subtract with borrow '''
-        value = self.get(obj, mode)
+        value = eval("self.get_"+mode+"(obj)")
         n = int(format(value, '08b')[-8])
         m = int(format(obj.reg_a, '08b')[-8])
         obj.reg_a -= (value + int(not obj.flag_c))
@@ -298,7 +297,7 @@ class Set:
 
     def dec(self, obj, mode):
         ''' Decrement memory by 1 '''
-        addr = self.put(obj, mode)
+        addr = eval("self.put_"+mode+"(obj)")
         value = obj.read_byte(addr)
         value -= 1
         obj.write_byte(addr, value)
@@ -327,7 +326,7 @@ class Set:
 
     def inc(self, obj, mode):
         ''' Increment memory by 1 '''
-        addr = self.put(obj, mode)
+        addr = eval("self.put_"+mode+"(obj)")
         value = obj.read_byte(addr)
         value += 0x01
         obj.write_byte(addr, value)
@@ -354,7 +353,7 @@ class Set:
 
     def jmp(self, obj, mode):
         ''' Jump to address '''
-        obj.program_counter = self.put(obj, mode)
+        obj.program_counter = eval("self.put_"+mode+"(obj)")
 
     def jsr(self, obj, mode):
         ''' Jump to subroutine: 6 cycles '''

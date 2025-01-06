@@ -213,7 +213,7 @@ class Processor:
         if zeropage:
             print(f"{Fore.CYAN}Zero page{Style.RESET_ALL}", end='')
             if mempage:
-                print(f"{' '*52} {Fore.CYAN}Page{Style.RESET_ALL} 0x{mempage:0>4x}", end='')
+                print(f"{' '*52} {Fore.CYAN}Page{Style.RESET_ALL} 0x{256*mempage:0>4x}", end='')
             print('')
             for j in range(16):
                 addr = j*16
@@ -230,5 +230,5 @@ class Processor:
                 if mempage:
                     for i in range(16):
                         print(
-                            f'{self.memory[mempage+addr+i-16]:0>2x} ', end='')
+                            f'{self.memory[256*mempage+addr+i]:0>2x} ', end='')
                 print('')

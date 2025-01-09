@@ -126,13 +126,13 @@ class Set:
 
     def pha(self, obj, mode):
         ''' Push accumulator onto stack '''
-        obj.write_byte(obj.stack_pointer, obj.reg_a)
+        obj.write_byte(obj.stack_pointer+0x100, obj.reg_a)
         obj.stack_pointer -= 0x01
 
     def pla(self, obj, mode):
         ''' Pull accumulator onto stack '''
-        obj.reg_a = obj.read_byte(obj.stack_pointer)
         obj.stack_pointer += 0x01
+        obj.reg_a = obj.read_byte(obj.stack_pointer+0x100)
 
     ''' Section 4: Shift '''
 

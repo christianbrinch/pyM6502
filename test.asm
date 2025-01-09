@@ -1,113 +1,196 @@
     .org $0100
 START:
-    LDA #31
-    STA MESSAGE_LEN
-    
-    LDA #$00
-    STA MESSAGE_PTR
-    LDA #$07
-    STA MESSAGE_PTR+1
-    
-    LDA #$45
-    STA SCREEN_PTR
-    LDA #$e1
-    STA COORDINATES+1
-    STA SCREEN_PTR+1
-    JSR PRINTMESSAGE 
+; Print line 1 of welcome message
+    LDA #$00            ; Load low bit of message address...
+    STA MESSAGE_PTR     ; ... into zp variable
+    LDA #$07            ; Load high bit of message address...
+    STA MESSAGE_PTR+1   ; ... into zp vaiable
+    LDA #31             ; Load message length...
+    STA MESSAGE_LEN     ; ... into zp variable
+    LDA #$45            ; Load low bit of screen coordinates...
+    STA SCREEN_PTR      ; ... into zp variable
+    LDA #$e1            ; Load high bit of screen coordinates...
+    STA SCREEN_PTR+1    ; ... into zp variable
+    JSR PRINTMESSAGE    ; Go print the message
 
-    INC MESSAGE_PTR
+    LDA #$1f
+    STA MESSAGE_PTR
     LDA #26
     STA MESSAGE_LEN
     LDA #$87
     STA SCREEN_PTR
     LDA #$e2
-    STA COORDINATES+1
     STA SCREEN_PTR+1
-    JSR PRINTMESSAGE 
+    JSR PRINTMESSAGE
 
-    INC MESSAGE_PTR
+    LDA #$39
+    STA MESSAGE_PTR
     LDA #5
     STA MESSAGE_LEN
     LDA #$40
     STA SCREEN_PTR
     LDA #$e6
-    STA COORDINATES+1
     STA SCREEN_PTR+1
-    JSR PRINTMESSAGE 
+    JSR PRINTMESSAGE
 
-    INC MESSAGE_PTR
-    LDA #1
-    STA MESSAGE_LEN
     LDA #$80
     STA SCREEN_PTR
     LDA #$e7
-    STA COORDINATES+1
     STA SCREEN_PTR+1
-    JSR PRINTMESSAGE 
-    
-    LDA #$00
-    STA MESSAGE_PTR
-    LDA #$06
-    STA MESSAGE_PTR+1  
-    LDX #0   
-STANDBY:
-    LDA (MESSAGE_PTR, X)
-    NOP
-    NOP
-    NOP
-    NOP
-    CMP #$ff
-    BEQ STANDBY 
 
+; INPUT STARTS HERE
+    LDA #0
+    STA POS
+
+INPUT:
+    LDA #$3e
+    STA MESSAGE_PTR
+    LDA #$07
+    STA MESSAGE_PTR+1
     LDA #1
     STA MESSAGE_LEN
     JSR PRINTMESSAGE
 
-    LDA (SCREEN_PTR,X)
-    TAX
-    INX
-    STX SCREEN_PTR
-
-    LDA #1
-    STA MESSAGE_LEN
-
-    LDA #$3e
-    STA MESSAGE_PTR
-    LDA #$07
-    STA MESSAGE_PTR+1      
-
-    JSR PRINTMESSAGE 
+    LDA #$ff
+    STA $0600
     LDA #$00
     STA MESSAGE_PTR
     LDA #$06
-    STA MESSAGE_PTR+1  
-   
-    LDA #$ff
-    STA $0600
-    JMP STANDBY     
+    STA MESSAGE_PTR+1
+IDLE:
+    ; Wait for input
+    LDX #0
+    LDA (MESSAGE_PTR, X)
+    NOP
+    NOP
+    NOP
+    NOP
+    CMP #$ff                ; Test for input
+    BEQ IDLE                ; No? Keep waiting
+    CMP #$aa                ; Test for return
+    BEQ RETURN              ; Yes? Execute return
 
-    BRK 
+; Put char in input buffer
+    LDY POS
+    STA (IP_PTR), Y
+    INY
+    STY POS
+; Print char on screen
+    LDA #1
+    STA MESSAGE_LEN
+    DEC SCREEN_PTR
+    JSR PRINTMESSAGE
+
+    JMP INPUT
+
+
+RETURN:
+    LDA #1
+    STA MESSAGE_LEN
+    DEC SCREEN_PTR
+    LDA #26
+    JSR PRINTMESSAGE
+    LDX #0
+    LDA SCREEN_PTR+1
+    SBC #$e0
+    STA SCREEN_PTR+1
+    CLC
+
+DIVIDE:
+    LDA SCREEN_PTR+1
+    CMP #$00
+    BEQ DIV_DONE
+    INX
+    SBC #$01
+    CMP #$00
+    BEQ DIV_DONE
+    STA SCREEN_PTR+1
+    LDA SCREEN_PTR
+    SBC #$41
+    STA SCREEN_PTR
+    LDA SCREEN_PTR+1
+    SBC #$00
+    STA SCREEN_PTR+1
+    JMP DIVIDE
+DIV_DONE:
+    INX
+    LDA #$e0
+    STA SCREEN_PTR+1
+    LDA #$00
+
+MULTIPLY:
+    CPX #$00
+    BEQ MUL_DONE
+    DEX
+    CLC
+    ADC #$a0
+    BCC M_NOCARRY
+    INC SCREEN_PTR+1
+    CLC
+M_NOCARRY:
+    ADC #$a0
+    BCC MULTIPLY
+
+    INC SCREEN_PTR+1
+    JMP MULTIPLY
+MUL_DONE:
+    STA SCREEN_PTR
+
+; Parse input buffer here
+    LDA #0
+    CLC
+    ADC $0610
+    ADC $0611
+    ADC $0612
+    CMP #$17
+    BEQ PEEK
+    JMP BAILOUT
+
+RESET_IP:
+; Reset input buffer
+    LDA #0
+    STA POS
+    JMP INPUT
+
+
+PEEK:
+    LDA $0613
+    CMP #$0a
+    BNE BAILOUT
+    LDA $0614
+    CMP #$24
+    BNE BAILOUT
+    LDA $0615
+    LDX #0
+    STA (MESSAGE_PTR, X)
+    LDA #1
+    STA MESSAGE_LEN
+    ;DEC SCREEN_PTR
+    JSR PRINTMESSAGE
+    JMP RESET_IP
+
+BAILOUT:
+    BRK
+
+
+
+
+
+
+
 
 
 PRINTMESSAGE:
-    LDX #0
-    LDA (MESSAGE_PTR, X)
+    LDY #0
+PMLOOP:
+    LDA (MESSAGE_PTR), Y
+    STY $aaaa
     JSR GET_CHAR
-    LDX MESSAGE_LEN
-    DEX
-    CPX #0
-    BEQ DONE
-
-    STX MESSAGE_LEN
-    LDX MESSAGE_PTR
-    INX
-    STX MESSAGE_PTR
-    LDA SCREEN_PTR
-    ADC #1
-    STA SCREEN_PTR
-    LDA COORDINATES+1
-    STA SCREEN_PTR+1 
-    JMP PRINTMESSAGE
+    LDY $aaaa
+    INY
+    CPY MESSAGE_LEN
+    BNE PMLOOP
+    RTS
 
 GET_CHAR:
     STA CHAR_PTR
@@ -122,35 +205,36 @@ GET_CHAR:
     ADC CHAR_PTR
     STA CHAR_PTR
     BCC DRAW_CHAR
-    LDX CHAR_PTR+1
-    INX
-    STX CHAR_PTR+1
+    INC CHAR_PTR+1
     JMP DRAW_CHAR
 
 
 DRAW_CHAR:
-    LDX #0          
-    LDY #0  
-
+    LDX #0
+    LDY #0
+    LDA SCREEN_PTR+1
+    PHA
 LOOP:
-    LDA (CHAR_PTR,X)     
-    STA (SCREEN_PTR),Y    
+    LDA (CHAR_PTR,X)
+    STA (SCREEN_PTR),Y
 
-    INX             
-    CPX #8          
-    BEQ DONE        
+    INX
+    CPX #8
+    BEQ DONE
 
-    TYA             
-    CLC             
-    ADC #$28        
+    TYA
+    CLC
+    ADC #$28
     TAY
     BCC LOOP
-             
+
     INC SCREEN_PTR+1
-    JMP LOOP    
-    
+    JMP LOOP
 DONE:
-    RTS     
+    PLA
+    STA SCREEN_PTR+1
+    INC SCREEN_PTR
+    RTS
 
     .org $0000
     JMP START
@@ -161,17 +245,24 @@ MESSAGE_PTR:
 MESSAGE_LEN:
     .byte $00
 
-COORDINATES:
-    .byte $00, $00
-
 SCREEN_PTR:
     .byte $00, $00
 
 CHAR_PTR:
     .byte $00, $00
 
+IP_PTR:
+    .byte $10, $06
+
+POS:
+    .byte $00
+
     .org $0600
     .byte $ff
+    .org $0610
+INPUTBUFFER:
+    .byte $aa, $00, $00, $00, $00, $00, $00, $00
+    .byte $00, $00, $00, $00, $00, $00, $00, $00
 
     .org $0700
 MESSAGES:
@@ -199,7 +290,7 @@ Characters:
     .byte $00, $7c, $40, $40, $78, $60, $60, $7c ; E: 4
     .byte $00, $7c, $40, $40, $78, $60, $60, $60 ; F: 5
     .byte $00, $3c, $40, $40, $60, $6c, $64, $3c ; G: 6
-    .byte $00, $44, $44, $44, $7c, $64, $64, $64 ; H: 7 
+    .byte $00, $44, $44, $44, $7c, $64, $64, $64 ; H: 7
     .byte $00, $38, $10, $10, $18, $18, $18, $38 ; I: 8
     .byte $00, $04, $04, $04, $04, $04, $64, $38 ; J: 9
     .byte $00, $44, $48, $50, $60, $70, $68, $64 ; K: a
@@ -220,15 +311,15 @@ Characters:
     .byte $00, $7c, $04, $08, $10, $20, $60, $7c ; Z: 19
     .byte $00, $38, $44, $4c, $54, $64, $44, $38 ; 0: 1a
     .byte $00, $10, $30, $10, $10, $10, $10, $38 ; 1: 1b
-    .byte $00, $38, $44, $04, $18, $20, $40, $7c ; 2: 1c 
+    .byte $00, $38, $44, $04, $18, $20, $40, $7c ; 2: 1c
     .byte $00, $7c, $04, $08, $18, $04, $44, $38 ; 3: 1d
     .byte $00, $08, $18, $28, $48, $7c, $08, $08 ; 4: 1e
     .byte $00, $7c, $40, $78, $04, $04, $44, $38 ; 5: 1f
     .byte $00, $1c, $20, $40, $78, $44, $44, $38 ; 6: 20
-    .byte $00, $7c, $04, $08, $10, $20, $20, $20 ; 7: 21 
+    .byte $00, $7c, $04, $08, $10, $20, $20, $20 ; 7: 21
     .byte $00, $38, $44, $44, $38, $44, $44, $38 ; 8: 22
     .byte $00, $38, $44, $44, $3c, $04, $08, $10 ; 9: 23
-    .byte $00, $00, $00, $00, $00, $00, $00, $00 ; ' ': 24 
+    .byte $00, $00, $00, $00, $00, $00, $00, $00 ; ' ': 24
     .byte $00, $7c, $7c, $7c, $7c, $7c, $7c, $7c ; cursor: 25
 
     .org $fffc

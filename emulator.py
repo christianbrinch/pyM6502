@@ -28,9 +28,10 @@ def cpu_step():
     while run:
         #print("Press enter")
         #input()
-        time.sleep(0.001)
+        time.sleep(0.0003)
         with buffer_lock:
-            cpu.exec(output=False)
+            #cpu.exec(output=False)
+            cpu.exec(output=True, zeropage=True, mempage=6)
             if not cpu.flag_b:
                 run = 0
                 print("Program has ended")
@@ -141,6 +142,10 @@ def main():
                     mem[0x0600] = 0x22
                 if event.key == pygame.K_9:
                     mem[0x0600] = 0x23
+                if event.key == pygame.K_SPACE:
+                    mem[0x0600] = 0x24
+                if event.key == pygame.K_RETURN:
+                    mem[0x0600] = 0xaa
         clock.tick(60)  # Limit the main loop to 60 FPS
 
     pygame.quit()

@@ -33,42 +33,38 @@ START:
     STA SCREEN_PTR+1
     JSR PRINTMESSAGE
 
-    LDA #$80
-    STA SCREEN_PTR
-    LDA #$e7
-    STA SCREEN_PTR+1
+    LDA #$80            ; Place the low bit of the cursor position ...
+    STA SCREEN_PTR      ; ... at the right spot on the screen
+    LDA #$e7            ; Place the high bit of the cursor position ...
+    STA SCREEN_PTR+1    ; ... at the right spot on the screen
 
 ; INPUT STARTS HERE
+RESET_IP:
     LDA #0
     STA POS
 
 INPUT:
-    LDA #$3e
-    STA MESSAGE_PTR
-    LDA #$07
-    STA MESSAGE_PTR+1
-    LDA #1
-    STA MESSAGE_LEN
-    JSR PRINTMESSAGE
+    LDA #$25            ; Load cursor character code ...
+    JSR GET_CHAR        ; ...and draw it on the screen
 
-    LDA #$ff
-    STA $0600
-    LDA #$00
-    STA MESSAGE_PTR
-    LDA #$06
-    STA MESSAGE_PTR+1
+    LDA #$ff            ; Initialise
+    STA $0600           ; the keyboard buffer with ff
+
+    LDA #$00            ; Point the message pointer
+    STA MESSAGE_PTR     ; to the keyboard buffer
+    LDA #$06            ; (Is this really needed?)
+    STA MESSAGE_PTR+1   ; ...
 IDLE:
-    ; Wait for input
-    LDX #0
-    LDA (MESSAGE_PTR, X)
-    NOP
-    NOP
-    NOP
-    NOP
-    CMP #$ff                ; Test for input
-    BEQ IDLE                ; No? Keep waiting
-    CMP #$aa                ; Test for return
-    BEQ RETURN              ; Yes? Execute return
+; Wait for input
+    LDA $0600           ; Load the keyboard buffer
+    NOP                 ; Wait a bit
+    NOP                 ; Wait a bit
+    CMP #$ff            ; Test for input
+    BEQ IDLE            ; No? Keep waiting
+    CMP #$ab            ; Test for backspace
+    BEQ BACKSPACE       ; Yes? Execute backspace
+    CMP #$aa            ; Test for return
+    BEQ RETURN          ; Yes? Execute return
 
 ; Put char in input buffer
     LDY POS
@@ -76,20 +72,167 @@ IDLE:
     INY
     STY POS
 ; Print char on screen
-    LDA #1
-    STA MESSAGE_LEN
     DEC SCREEN_PTR
-    JSR PRINTMESSAGE
+    JSR GET_CHAR
+    JMP INPUT           ; Loop back to wait for more input
 
+BACKSPACE:
+    LDY POS
+    DEY
+    LDA #$00
+    STA (IP_PTR), Y
+    STY POS
+    DEC SCREEN_PTR
+    LDA #$24
+    JSR GET_CHAR
+    DEC SCREEN_PTR
+    DEC SCREEN_PTR
     JMP INPUT
 
 
 RETURN:
-    LDA #1
-    STA MESSAGE_LEN
-    DEC SCREEN_PTR
-    LDA #26
-    JSR PRINTMESSAGE
+    DEC SCREEN_PTR     ; Move cursor back
+    LDA #$24           ; Load space
+    JSR GET_CHAR       ; Erase cursor
+    JSR CARRIAGERETURN ; Move cursor to next line
+
+; Parse input buffer here
+    LDA #0
+    CLC
+    ADC $0610
+    ADC $0611
+    ADC $0612
+    CMP #$17
+    BEQ PEEK
+    CMP #$27
+    BEQ POKE
+    CMP #$3c
+    BEQ GOSYS
+    JMP BAILOUT
+
+GOSYS:
+    JMP SYS
+
+PEEK:
+    LDA $0613
+    CMP #$0a
+    BNE BAILOUT
+    LDA $0614
+    CMP #$24
+    BNE BAILOUT
+    LDA $0615
+    TAX
+    LDA (CHAR2VALUE_PTR, X)
+    STA TMP
+    LDA $0616
+    TAX
+    LDA (CHAR2VALUE_PTR, X)
+    ADC TMP
+    STA TMP+1
+    LDA $0617
+    TAX
+    LDA (CHAR2VALUE_PTR, X)
+    STA TMP
+    LDA $0618
+    TAX
+    LDA (CHAR2VALUE_PTR, X)
+    ADC TMP
+    STA TMP
+    LDX #0
+    LDA (TMP, X)
+    LSR
+    LSR
+    LSR
+    LSR
+    TAY
+    LDA (VALUE2CHAR_PTR), Y
+    JSR GET_CHAR
+    LDX #0
+    LDA (TMP, X)
+    STA $0620
+    AND #$0f
+    STA $0621
+    TAY
+    LDA (VALUE2CHAR_PTR), Y
+    JSR GET_CHAR
+    JSR CARRIAGERETURN
+    JMP RESET_IP
+
+BAILOUT:
+    BRK
+
+POKE:
+    LDA $0613
+    CMP #$04
+    BNE BAILOUT
+    LDA $0614
+    CMP #$24
+    BNE BAILOUT
+    LDA $0615
+    TAX
+    LDA (CHAR2VALUE_PTR, X)
+    STA TMP
+    LDA $0616
+    TAX
+    LDA (CHAR2VALUE_PTR, X)
+    ADC TMP
+    STA TMP+1
+    LDA $0617
+    TAX
+    LDA (CHAR2VALUE_PTR, X)
+    STA TMP
+    LDA $0618
+    TAX
+    LDA (CHAR2VALUE_PTR, X)
+    ADC TMP
+    STA TMP
+    LDA $0619
+    CMP #$24
+    BNE BAILOUT
+    LDA $061a
+    TAX
+    LDA (CHAR2VALUE_PTR, X)
+    ASL
+    ASL
+    ASL
+    ASL
+    STA TMP2
+    LDA $061b
+    TAX
+    LDA (CHAR2VALUE_PTR, X)
+    ADC TMP2
+    LDX #0
+    STA (TMP,X)
+    JSR CARRIAGERETURN
+    JMP RESET_IP
+
+SYS:
+    LDA $0613
+    CMP #$24
+    BNE BAILOUT
+    LDA $0614
+    TAX
+    LDA (CHAR2VALUE_PTR, X)
+    STA TMP
+    LDA $0615
+    TAX
+    LDA (CHAR2VALUE_PTR, X)
+    ADC TMP
+    STA TMP+1
+    LDA $0616
+    TAX
+    LDA (CHAR2VALUE_PTR, X)
+    STA TMP
+    LDA $0617
+    TAX
+    LDA (CHAR2VALUE_PTR, X)
+    ADC TMP
+    STA TMP
+    LDX #0
+    JMP (TMP)
+
+
+CARRIAGERETURN:
     LDX #0
     LDA SCREEN_PTR+1
     SBC #$e0
@@ -135,44 +278,7 @@ M_NOCARRY:
     JMP MULTIPLY
 MUL_DONE:
     STA SCREEN_PTR
-
-; Parse input buffer here
-    LDA #0
-    CLC
-    ADC $0610
-    ADC $0611
-    ADC $0612
-    CMP #$17
-    BEQ PEEK
-    JMP BAILOUT
-
-RESET_IP:
-; Reset input buffer
-    LDA #0
-    STA POS
-    JMP INPUT
-
-
-PEEK:
-    LDA $0613
-    CMP #$0a
-    BNE BAILOUT
-    LDA $0614
-    CMP #$24
-    BNE BAILOUT
-    LDA $0615
-    LDX #0
-    STA (MESSAGE_PTR, X)
-    LDA #1
-    STA MESSAGE_LEN
-    ;DEC SCREEN_PTR
-    JSR PRINTMESSAGE
-    JMP RESET_IP
-
-BAILOUT:
-    BRK
-
-
+    RTS
 
 
 
@@ -236,6 +342,11 @@ DONE:
     INC SCREEN_PTR
     RTS
 
+
+
+
+
+
     .org $0000
     JMP START
 
@@ -251,11 +362,22 @@ SCREEN_PTR:
 CHAR_PTR:
     .byte $00, $00
 
+CHAR2VALUE_PTR:
+    .byte $00, $0a
+
+VALUE2CHAR_PTR:
+    .byte $00, $0b
+
 IP_PTR:
     .byte $10, $06
 
 POS:
     .byte $00
+
+TMP:
+    .byte $00, $00
+TMP2:
+    .byte $00, $00
 
     .org $0600
     .byte $ff
@@ -321,6 +443,17 @@ Characters:
     .byte $00, $38, $44, $44, $3c, $04, $08, $10 ; 9: 23
     .byte $00, $00, $00, $00, $00, $00, $00, $00 ; ' ': 24
     .byte $00, $7c, $7c, $7c, $7c, $7c, $7c, $7c ; cursor: 25
+
+; Table for converting character codes to its numeric values
+    .org $0a1a
+    .byte $00, $01, $02, $03, $04, $05, $06, $07
+    .byte $08, $09
+    .org $0a00
+    .byte $0a, $0b, $0c, $0d, $0e, $0f
+; Table for converting numeric values to character codes
+    .org $0b00
+    .byte $1a, $1b, $1c, $1d, $1e, $1f, $20, $21
+    .byte $22, $23, $00, $01, $02, $03, $04, $05
 
     .org $fffc
     .word $8000

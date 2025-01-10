@@ -141,13 +141,13 @@ class Set:
         if mode == 'acc':
             value = obj.reg_a
             obj.flag_c = bool(int(format(value, '08b')[-8]))
-            value = max(value << 1, 0xff)
+            value = min(value << 1, 0xff)
             obj.reg_a = value
         else:
             value = eval("self.get_"+mode+"(obj)")
             obj.flag_c = bool(int(format(value, '08b')[-8]))
             addr = eval("self.put_"+mode+"(obj)")
-            value = max(value << 1, 0xff)
+            value = min(value << 1, 0xff)
             obj.write_byte(addr, value)
         obj.flag_n = bool(int(format(value, '08b')[-8]))
         obj.flag_z = bool(not value)

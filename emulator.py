@@ -25,17 +25,22 @@ def cpu_step():
     global mem
     global cpu
     run = 1
+    step=False
     while run:
-        #print("Press enter")
-        #input()
-        time.sleep(0.0003)
+        if step:
+            print("Press enter")
+            input()
+        #time.sleep(0.0003)
         with buffer_lock:
-            #cpu.exec(output=False)
-            cpu.exec(output=True, zeropage=True, mempage=6)
+            if not step:
+                cpu.exec(output=False)
+            else:
+                cpu.exec(output=True, zeropage=True, mempage=1)
             if not cpu.flag_b:
-                run = 0
-                print("Program has ended")
-                input()
+                step=True
+                #run = 0
+                #print("Program has ended")
+                #input()
 
 def horizontal_scanning():
     """Function to render the screen buffer line by line (separate thread)."""
@@ -146,6 +151,8 @@ def main():
                     mem[0x0600] = 0x24
                 if event.key == pygame.K_RETURN:
                     mem[0x0600] = 0xaa
+                if event.key == pygame.K_BACKSPACE:
+                    mem[0x0600] = 0xab
         clock.tick(60)  # Limit the main loop to 60 FPS
 
     pygame.quit()

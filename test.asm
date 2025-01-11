@@ -50,10 +50,6 @@ INPUT:
     LDA #$ff            ; Initialise
     STA $0600           ; the keyboard buffer with ff
 
-    LDA #$00            ; Point the message pointer
-    STA MESSAGE_PTR     ; to the keyboard buffer
-    LDA #$06            ; (Is this really needed?)
-    STA MESSAGE_PTR+1   ; ...
 IDLE:
 ; Wait for input
     LDA $0600           ; Load the keyboard buffer
@@ -400,7 +396,6 @@ MESSAGES:
 
 
     .byte $11, $04, $00, $03, $18                ; ready
-    .byte $25
 
 
     .org $0800

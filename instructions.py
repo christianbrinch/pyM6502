@@ -34,6 +34,8 @@ class Set:
 
     def put_abs(self, obj):
         return obj.fetch_word()
+    def put_ind(self, obj):
+        return obj.read_word(obj.fetch_word())
     def put_abx(self, obj):
         return obj.fetch_word()+obj.reg_x
     def put_aby(self, obj):

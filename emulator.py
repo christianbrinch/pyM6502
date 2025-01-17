@@ -55,7 +55,7 @@ def horizontal_scanning():
                         screen.set_at((2*(8*x+bit)+1, 2*y), color)
                         screen.set_at((2*(8*x+bit), 2*y+1), [0.6*i for i in color])
                         screen.set_at((2*(8*x+bit)+1, 2*y+1), [0.6*i for i in color])
-                pygame.display.update(pygame.Rect(0, y, WIDTH, 1))  # Update one line
+                pygame.display.update(pygame.Rect(0, 2*y, WIDTH, 1))  # Update one line
                 time.sleep(1 / (HEIGHT * 60))  # Simulate horizontal scanning at 60 Hz
 
 

@@ -110,16 +110,21 @@ GOSYS:
     JMP SYS
 
 PEEK:
-    LDA $0613
-    CMP #$0a
-    BNE BAILOUT
-    LDA $0614
-    CMP #$24
-    BNE BAILOUT
-    LDA $0615
-    TAX
-    LDA (CHAR2VALUE_PTR, X)
-    STA TMP
+    LDA $0613       ; load character
+    CMP #$0a        ; should be k
+    BNE BAILOUT     ; if not, syntax error
+    LDA $0614       ; load character
+    CMP #$24        ; should be blank space
+    BNE BAILOUT     ; if not, syntax error
+    
+    LDA $0615       ; load character, should be high nibble of high byte
+    TAX             ; move to X
+    LDA (CHAR2VALUE_PTR, X) ; convert character to number 
+    ASL
+    ASL
+    ASL
+    ASL
+    STA TMP         ; Save for later
     LDA $0616
     TAX
     LDA (CHAR2VALUE_PTR, X)
@@ -128,6 +133,10 @@ PEEK:
     LDA $0617
     TAX
     LDA (CHAR2VALUE_PTR, X)
+    ASL
+    ASL
+    ASL
+    ASL
     STA TMP
     LDA $0618
     TAX

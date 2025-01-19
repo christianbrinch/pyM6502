@@ -1,6 +1,7 @@
-    .org $0100
+    .org $0200
 START:
 ; Print line 1 of welcome message
+    brk
     LDA #$00            ; Load low bit of message address...
     STA MESSAGE_PTR     ; ... into zp variable
     LDA #$07            ; Load high bit of message address...
@@ -176,6 +177,10 @@ POKE:
     LDA $0615
     TAX
     LDA (CHAR2VALUE_PTR, X)
+    ASL
+    ASL
+    ASL
+    ASL    
     STA TMP
     LDA $0616
     TAX
@@ -185,6 +190,10 @@ POKE:
     LDA $0617
     TAX
     LDA (CHAR2VALUE_PTR, X)
+    ASL
+    ASL
+    ASL
+    ASL
     STA TMP
     LDA $0618
     TAX
@@ -212,12 +221,16 @@ POKE:
     JMP RESET_IP
 
 SYS:
-    LDA $0613
-    CMP #$24
-    BNE BAILOUT
-    LDA $0614
+    LDA $0613               ; load character
+    CMP #$24                ; Is it a blank space
+    BNE BAILOUT             ; if not, bail
+    LDA $0614               
     TAX
     LDA (CHAR2VALUE_PTR, X)
+    ASL
+    ASL
+    ASL
+    ASL
     STA TMP
     LDA $0615
     TAX
@@ -227,6 +240,10 @@ SYS:
     LDA $0616
     TAX
     LDA (CHAR2VALUE_PTR, X)
+    ASL
+    ASL
+    ASL 
+    ASL
     STA TMP
     LDA $0617
     TAX
@@ -234,7 +251,15 @@ SYS:
     ADC TMP
     STA TMP
     LDX #0
+    LDA #>END_PROG
+    PHA
+    LDA #<END_PROG
+    SEC
+    SBC #1
+    PHA
     JMP (TMP)
+END_PROG:
+    JMP RESET_IP
 
 
 CARRIAGERETURN:

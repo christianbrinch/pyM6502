@@ -35,7 +35,7 @@ def cpu_step():
             if not step:
                 cpu.exec(output=False)
             else:
-                cpu.exec(output=True, zeropage=True, mempage=1)
+                cpu.exec(output=True, zeropage=True, mempage=2)
             if not cpu.flag_b:
                 step=True
                 #run = 0

@@ -75,8 +75,8 @@ class Processor:
         self.reg_x = 0  # Index register X
         self.reg_y = 0  # Index register Y
 
-        self.program_counter = 0  # Program counter
-        self.stack_pointer = 0  # stack pointer
+        self.program_counter = 0x0000        # Program counter
+        self.stack_pointer = 0xff  # stack pointer
         self.cycles = 0  # Clock cycles
 
         self.flag_n = False  # status flag - Negative Flag
@@ -93,7 +93,7 @@ class Processor:
         ''' Reset processor. Program counter is initialized to FCE2 and
             stack counter to 01FD. '''
         self.program_counter = 0x0000  # Hardcoded start vector post-reset
-        self.stack_pointer = 0x0ff     # Hardcoded stack pointer post-reset
+        self.stack_pointer = 0xff      # Hardcoded stack pointer post-reset
         self.cycles = 0
         self.flag_n = False            # Negative
         self.flag_v = False            # Overflow
@@ -192,7 +192,7 @@ class Processor:
 
         if output:
             print()
-            print(f"{Fore.CYAN}PC{Style.RESET_ALL} {self.program_counter:0>4} "
+            print(f"{Fore.CYAN}PC{Style.RESET_ALL} 0x{self.program_counter:0>2x} "
                   f"{Fore.CYAN}Reg A{Style.RESET_ALL} 0x{self.reg_a:0>2x} "
                   f"{Fore.CYAN}Reg X{Style.RESET_ALL} 0x{self.reg_x:0>2x} "
                   f"{Fore.CYAN}Reg Y{Style.RESET_ALL} 0x{self.reg_y:0>2x} "
@@ -229,6 +229,10 @@ class Processor:
                 print(f"{' '*9}", end='')
                 if mempage:
                     for i in range(16):
-                        print(
+                        if 256*mempage+addr+i in tmp:
+                            print(
+                                f'{Fore.YELLOW}{self.memory[256*mempage+addr+i]:0>2x}{Style.RESET_ALL} ', end='')
+                        else:
+                         print(
                             f'{self.memory[256*mempage+addr+i]:0>2x} ', end='')
                 print('')

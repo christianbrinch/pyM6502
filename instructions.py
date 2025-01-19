@@ -282,7 +282,7 @@ class Set:
         value = eval("self.get_"+mode+"(obj)")
         n = int(format(value, '08b')[-8])
         m = int(format(obj.reg_a, '08b')[-8])
-        obj.reg_a -= (value + int(not obj.flag_c))
+        obj.reg_a = obj.reg_a - value - (1- int(obj.flag_c))
         if obj.reg_a >= 0:
             obj.flag_c = True
         else:

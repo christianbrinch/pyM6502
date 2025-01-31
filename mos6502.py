@@ -3,7 +3,7 @@
     Usage:
         mem = Memory(file="path/to/bin/file")
         cpu = Processor(mem)
-        cpu.exec(verbose=True, zeropage=True, mempage=128)
+        cpu.exec(output=True, zeropage=True, mempage=128)
 '''
 
 __author__ = "Christian Brinch"
@@ -76,23 +76,24 @@ class Processor:
         self.reg_y = 0  # Index register Y
 
         self.program_counter = 0x0000        # Program counter
-        self.stack_pointer = 0xff  # stack pointer
-        self.cycles = 0  # Clock cycles
+        self.stack_pointer = 0xff            # stack pointer
+        self.cycles = 0                      # Clock cycles
 
         self.flag_n = False  # status flag - Negative Flag
         self.flag_v = False  # status flag - Overflow Flag
         self.flag_b = True   # status flag - Break Command
         self.flag_d = False  # status flag - Decimal Mode Flag
-        self.flag_i = True   # status flag - Interrupt Disable
+        self.flag_i = False   # status flag - Interrupt Disable
         self.flag_z = True   # status flag - Zero Flag
         self.flag_c = False  # status flag - Carry Flag
 
         self.ins = instructions.Set()
+        self.reset()
 
     def reset(self):
         ''' Reset processor. Program counter is initialized to FCE2 and
             stack counter to 01FD. '''
-        self.program_counter = 0x0000  # Hardcoded start vector post-reset
+        self.program_counter = self.read_word(0xfffc)  # Hardcoded start vector post-reset
         self.stack_pointer = 0xff      # Hardcoded stack pointer post-reset
         self.cycles = 0
         self.flag_n = False            # Negative
@@ -100,7 +101,7 @@ class Processor:
 
         self.flag_b = True             #
         self.flag_d = False            # Decimal
-        self.flag_i = True             # Interrupt disable
+        self.flag_i = False             # Interrupt disable
         self.flag_z = True             # Zero
         self.flag_c = False            # Carry
 

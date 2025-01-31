@@ -1,7 +1,6 @@
     .org $0200
 START:
 ; Print line 1 of welcome message
-    brk
     LDA #$00            ; Load low bit of message address...
     STA MESSAGE_PTR     ; ... into zp variable
     LDA #$07            ; Load high bit of message address...
@@ -117,10 +116,10 @@ PEEK:
     LDA $0614       ; load character
     CMP #$24        ; should be blank space
     BNE BAILOUT     ; if not, syntax error
-    
+
     LDA $0615       ; load character, should be high nibble of high byte
     TAX             ; move to X
-    LDA (CHAR2VALUE_PTR, X) ; convert character to number 
+    LDA (CHAR2VALUE_PTR, X) ; convert character to number
     ASL
     ASL
     ASL
@@ -180,7 +179,7 @@ POKE:
     ASL
     ASL
     ASL
-    ASL    
+    ASL
     STA TMP
     LDA $0616
     TAX
@@ -224,7 +223,7 @@ SYS:
     LDA $0613               ; load character
     CMP #$24                ; Is it a blank space
     BNE BAILOUT             ; if not, bail
-    LDA $0614               
+    LDA $0614
     TAX
     LDA (CHAR2VALUE_PTR, X)
     ASL
@@ -242,7 +241,7 @@ SYS:
     LDA (CHAR2VALUE_PTR, X)
     ASL
     ASL
-    ASL 
+    ASL
     ASL
     STA TMP
     LDA $0617
@@ -378,7 +377,6 @@ DONE:
 
 
     .org $0000
-    JMP START
 
 MESSAGE_PTR:
     .byte $00, $00
@@ -484,5 +482,6 @@ Characters:
     .byte $1a, $1b, $1c, $1d, $1e, $1f, $20, $21
     .byte $22, $23, $00, $01, $02, $03, $04, $05
 
+; Reset vector
     .org $fffc
-    .word $8000
+    .word $0200

@@ -50,9 +50,10 @@ class Set:
         return obj.read_word(obj.fetch_byte()) + obj.reg_x
     def put_iny(self, obj):
         return obj.read_word(obj.fetch_byte()) + obj.reg_y
-    ''' 
-        Instructions 
-        Split into sections    
+
+    '''
+        Instructions
+        Split into sections
     '''
 
     ''' Section 1: Load and store '''
@@ -78,7 +79,7 @@ class Set:
     def sta(self, obj, mode):
         ''' Store register A '''
         obj.write_byte(eval("self.put_"+mode+"(obj)"), obj.reg_a)
-   
+
 
     def stx(self, obj, mode):
         ''' Store register X '''
@@ -331,19 +332,19 @@ class Set:
         addr = eval("self.put_"+mode+"(obj)")
         value = obj.read_byte(addr)
         value += 0x01
-        obj.write_byte(addr, value)
+        obj.write_byte(addr, value%256)
         obj.flag_z = bool(not value)
         obj.flag_n = bool(int(format(value, '08b')[-8]))
 
     def inx(self, obj, mode):
         ''' Increment register X '''
-        obj.reg_x += 0x01
+        obj.reg_x = (obj.reg_x+0x01)%256
         obj.flag_z = bool(not obj.reg_x)
         obj.flag_n = bool(int(format(obj.reg_x, '08b')[-8]))
 
     def iny(self, obj, mode):
         ''' Increment register Y '''
-        obj.reg_y += 0x01
+        obj.reg_y = (obj.reg_y+0x01)%256
         obj.flag_z = bool(not obj.reg_y)
         obj.flag_n = bool(int(format(obj.reg_y, '08b')[-8]))
 
@@ -366,9 +367,19 @@ class Set:
         obj.program_counter = obj.fetch_word()
 
     def rti(self, obj, mode):
-        ''' To be implemented '''
-        print('RTI not implemented')
-        input()
+        ''' Return from interrupt: 6 cycles '''
+        obj.stack_pointer += 0x01
+        status = bin(obj.read_byte(obj.stack_pointer+0x100))[2:].zfill(8)
+        obj.flag_n = bool(status[0])
+        obj.flag_v = bool(status[1])
+        obj.flag_d = bool(status[4])
+        obj.flag_i = False #bool(status[5])
+        obj.flag_z = bool(status[6])
+        obj.flag_c = bool(status[7])
+        obj.stack_pointer += 0x01
+        obj.program_counter = obj.read_word(obj.stack_pointer+0x100)
+        obj.stack_pointer += 0x01
+
 
     def rts(self, obj, mode):
         ''' Return from subroutine: 6 cycles '''

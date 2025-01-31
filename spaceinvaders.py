@@ -3,45 +3,97 @@ import threading
 import mos6502
 import time
 
-WIDTH, HEIGHT = 640, 400
+WIDTH, HEIGHT = 256, 224
+SCANLINES = HEIGHT
+REFRESH_RATE = 60  # Hz
+FRAME_TIME = 1.0 / REFRESH_RATE  # Frame duration
+SCANLINE_TIME = FRAME_TIME / (SCANLINES + 38)  # 38 lines of vblank
+
 
 # Initialize Pygame
 pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("6502 emulator")
+pygame.display.set_caption("SI")
 clock = pygame.time.Clock()
 
-# Initialize memory (shared resource)
-mem = mos6502.Memory(file="a.out")
+# Load the ROM (shared resource)
+mem = mos6502.Memory(file='./si.rom')
 
 # Initialize CPU
 cpu = mos6502.Processor(mem)
+IRQ = False
 
-# Screen buffer 0xe000-0xff40 = 8000 bytes(shared resource)
+# Screen buffer 0x2400-0x3fff = 7168 bytes(shared resource)
 buffer_lock = threading.Lock()
 
 
 def cpu_step():
+    global IRQ
     global mem
     global cpu
     run = 1
     step=False
     while run:
-        if step:
-            print("Press enter")
-            input()
-        with buffer_lock:
-            if not step:
-                cpu.exec(output=False)
-            else:
-                cpu.exec(output=True, zeropage=True, mempage=2)
-            if not cpu.flag_b:
-                step=True
+        if not IRQ:
+            #if cpu.flag_i:
+            #    input()
+            #    cpu.exec(output=True, zeropage=True, mempage=0x1a)
+            #else:
+            cpu.exec(output=False)
+        else:
+            print("hello")
+            # Write IRQ handler address to IRQ vector
+            cpu.write_word(0xfffe, IRQ)
+            # Push PC to stack; high byte first, then low byte  
+            cpu.write_byte(cpu.stack_pointer+0x100, cpu.program_counter//256)
+            cpu.stack_pointer -= 0x01
+            cpu.write_byte(cpu.stack_pointer+0x100, cpu.program_counter%256)
+            cpu.stack_pointer -= 0x01
+            # Push status flags
+            status = '0b'+str(int(cpu.flag_n))+str(int(cpu.flag_v))+'10'+str(int(cpu.flag_d))+str(int(cpu.flag_i))+str(int(cpu.flag_z))+str(int(cpu.flag_c))
+            if int(status,0) > 255:
+                print("Status flag integer too large")
+                input()
+            cpu.write_byte(cpu.stack_pointer+0x100, int(status,0))
+            cpu.stack_pointer -= 0x01
+            # Read interrupt vector at $fffe-$ffff
+            cpu.program_counter = cpu.read_word(0xfffe)
+            IRQ = False
+ 
 
 def horizontal_scanning():
     """Function to render the screen buffer line by line (separate thread)."""
+    global IRQ
     global mem
     while True:
+        frame_start_time = time.time()
+        screen.fill((0, 0, 0))  # Clear screen at start of frame; good approximation. CRT persistence time is 1-5 µs << ~16µs render time per frame  
+
+        for scanline in range(SCANLINES):
+            # Simulate drawing one scanline
+            for x in range(WIDTH//8):
+                for bit,p in enumerate('{0:08b}'.format(mem[0x2400+(28*scanline)+x])):
+                    color = 3*[255*int(p)]
+                    screen.set_at((8*x+bit, scanline), color)
+            pygame.display.update((0, scanline, WIDTH, 1))  # Update one line    
+
+            # Simulate scanline timing
+            time.sleep(SCANLINE_TIME)
+
+            # Emulated interrupts
+            #if scanline == 127:
+            #    IRC = 0x0c08
+            if scanline == 223:
+                if not cpu.flag_i:
+                    IRQ = 0x0c10
+                #else:
+                #    print("Interrupt set while handler code is still running")
+
+        # Simulate VBlank (remaining time until 60 Hz frame completes)
+        vblank_time = FRAME_TIME - (SCANLINES * SCANLINE_TIME)
+        time.sleep(vblank_time)
+
+        '''
         for y in range(HEIGHT//2):
             for x in range(WIDTH//16):
                 for bit,p in enumerate('{0:08b}'.format(mem[0xe000+(40*y)+x])):
@@ -52,7 +104,7 @@ def horizontal_scanning():
                     screen.set_at((2*(8*x+bit)+1, 2*y+1), [0.6*i for i in color])
                 pygame.display.update(pygame.Rect(0, 2*y, WIDTH, 1))  # Update one line
                 time.sleep(1 / (HEIGHT * 60))  # Simulate horizontal scanning at 60 Hz
-
+        '''
 
 def main():
     clock_module = threading.Thread(target=cpu_step, daemon=True)

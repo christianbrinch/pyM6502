@@ -2,6 +2,7 @@ import pygame
 import threading
 import mos6502
 import time
+import numpy as np
 
 WIDTH, HEIGHT = 256, 224
 SCANLINES = HEIGHT
@@ -41,7 +42,6 @@ def cpu_step():
             #else:
             cpu.exec(output=False)
         else:
-            print("hello")
             # Write IRQ handler address to IRQ vector
             cpu.write_word(0xfffe, IRQ)
             # Push PC to stack; high byte first, then low byte  
@@ -65,46 +65,36 @@ def horizontal_scanning():
     """Function to render the screen buffer line by line (separate thread)."""
     global IRQ
     global mem
-    while True:
-        frame_start_time = time.time()
+    n=0
+    q=[]
+    while n<100:
+        n+=1
+        frame_start = time.time()
         screen.fill((0, 0, 0))  # Clear screen at start of frame; good approximation. CRT persistence time is 1-5 µs << ~16µs render time per frame  
-
+        
         for scanline in range(SCANLINES):
             # Simulate drawing one scanline
-            for x in range(WIDTH//8):
-                for bit,p in enumerate('{0:08b}'.format(mem[0x2400+(28*scanline)+x])):
-                    color = 3*[255*int(p)]
-                    screen.set_at((8*x+bit, scanline), color)
-            pygame.display.update((0, scanline, WIDTH, 1))  # Update one line    
+            base_addr = 0x2400+(28*scanline)
+            pixels = np.zeros((WIDTH, 3), dtype=np.uint8)
 
-            # Simulate scanline timing
-            time.sleep(SCANLINE_TIME)
+            for i in range(32):
+                byte = mem[base_addr + i]
+                for bit in range(8):
+                    pixels[i * 8 + (7 - bit)] = 255 if (byte & (1 << bit)) else 0  # Reverse bit order
+            pygame.surfarray.pixels3d(screen)[:, scanline, :] = pixels
 
             # Emulated interrupts
             #if scanline == 127:
             #    IRC = 0x0c08
-            if scanline == 223:
-                if not cpu.flag_i:
-                    IRQ = 0x0c10
-                #else:
-                #    print("Interrupt set while handler code is still running")
+#            if scanline == 223:
+        q+=[time.time() - frame_start]
+        if not cpu.flag_i:
+            IRQ = 0x0c10
 
-        # Simulate VBlank (remaining time until 60 Hz frame completes)
-        vblank_time = FRAME_TIME - (SCANLINES * SCANLINE_TIME)
-        time.sleep(vblank_time)
+        pygame.display.flip()
 
-        '''
-        for y in range(HEIGHT//2):
-            for x in range(WIDTH//16):
-                for bit,p in enumerate('{0:08b}'.format(mem[0xe000+(40*y)+x])):
-                    color = 3*[255*int(p)]
-                    screen.set_at((2*(8*x+bit), 2*y), color)
-                    screen.set_at((2*(8*x+bit)+1, 2*y), color)
-                    screen.set_at((2*(8*x+bit), 2*y+1), [0.6*i for i in color])
-                    screen.set_at((2*(8*x+bit)+1, 2*y+1), [0.6*i for i in color])
-                pygame.display.update(pygame.Rect(0, 2*y, WIDTH, 1))  # Update one line
-                time.sleep(1 / (HEIGHT * 60))  # Simulate horizontal scanning at 60 Hz
-        '''
+    print(sum(q)/len(q))
+
 
 def main():
     clock_module = threading.Thread(target=cpu_step, daemon=True)

@@ -34,17 +34,23 @@ def cpu_step():
     global cpu
     run = 1
     step=False
+    st=0
     while run:
         if not IRQ:
             #if cpu.flag_i:
             #    input()
             #    cpu.exec(output=True, zeropage=True, mempage=0x1a)
             #else:
-            cpu.exec(output=False)
+            if not cpu.flag_b:
+                cpu.exec(output=True, zeropage=True, mempage=0x24)
+                input()
+            else:
+                cpu.exec(output=False)
+
         else:
             # Write IRQ handler address to IRQ vector
             cpu.write_word(0xfffe, IRQ)
-            # Push PC to stack; high byte first, then low byte  
+            # Push PC to stack; high byte first, then low byte
             cpu.write_byte(cpu.stack_pointer+0x100, cpu.program_counter//256)
             cpu.stack_pointer -= 0x01
             cpu.write_byte(cpu.stack_pointer+0x100, cpu.program_counter%256)
@@ -59,7 +65,7 @@ def cpu_step():
             # Read interrupt vector at $fffe-$ffff
             cpu.program_counter = cpu.read_word(0xfffe)
             IRQ = False
- 
+
 
 def horizontal_scanning():
     """Function to render the screen buffer line by line (separate thread)."""
@@ -67,11 +73,11 @@ def horizontal_scanning():
     global mem
     n=0
     q=[]
-    while n<100:
+    while True: #n<100:
         n+=1
         frame_start = time.time()
-        screen.fill((0, 0, 0))  # Clear screen at start of frame; good approximation. CRT persistence time is 1-5 µs << ~16µs render time per frame  
-        
+        #screen.fill((0, 0, 0))  # Clear screen at start of frame; good approximation. CRT persistence time is 1-5 µs << ~16µs render time per frame
+
         for scanline in range(SCANLINES):
             # Simulate drawing one scanline
             base_addr = 0x2400+(28*scanline)
@@ -87,14 +93,15 @@ def horizontal_scanning():
             #if scanline == 127:
             #    IRC = 0x0c08
 #            if scanline == 223:
-        q+=[time.time() - frame_start]
-        if not cpu.flag_i:
-            IRQ = 0x0c10
+#        if not cpu.flag_i:
+#            IRQ = 0x0c10
 
         pygame.display.flip()
+        #while time.time() < frame_start + FRAME_TIME:
+        #    pass  # Ensure exact 60 Hz refresh
+        q+=[time.time()-frame_start]
 
     print(sum(q)/len(q))
-
 
 def main():
     clock_module = threading.Thread(target=cpu_step, daemon=True)
@@ -197,5 +204,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-

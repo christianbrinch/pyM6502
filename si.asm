@@ -1,6 +1,41 @@
     .org $0000
-    .word $3F00     ; Video RAM start address    
+    .word $2400     ; Video RAM start address    
+MesLen:
+    .byte $00       ; Message length
+ScrCoord:
+    .word $0000     ; Screen coordinate
+MesAddr:
+    .word $0000     ; Message address
 
+SPRITE_PTR:
+    .word $1e00
+
+
+    .org $08f3
+PrintMessage:
+    brk
+    LDA (MesAddr,X)
+    JSR DrawChar
+    INC MesAddr
+    DEC MesLen
+    LDA MesLen
+    CMP #0
+    BNE PrintMessage
+    RTS    
+
+DrawChar:
+    STA SPRITE_PTR
+    CLC
+    ADC SPRITE_PTR
+    STA SPRITE_PTR
+    ADC SPRITE_PTR
+    STA SPRITE_PTR
+    ADC SPRITE_PTR
+    LDX #$08
+    LDY #$00
+    JMP DrawSimpSprite
+
+    
     .org $0c00
 Reset:
     NOP
@@ -26,7 +61,6 @@ ScanLine224:
     PHA
     TYA
     PHA
-    INC $03
 
     PLA
     TAY
@@ -38,22 +72,53 @@ ScanLine224:
     .org $0c8c
     JMP $0c82
 
+    .org $1439
+DrawSimpSprite:
+    LDA (SPRITE_PTR),Y
+    STA (ScrCoord),Y
+    INC SPRITE_PTR
+    CLC
+    LDA ScrCoord
+    ADC #$20
+    STA ScrCoord
+    DEX
+    CPX $00
+    BNE DrawSimpSprite
+    RTS
+
+
+
     .org $18D4
 init:
     .byte $ea, $ea, $ea, $ea, $ea, $ea, $ea, $ea
     JSR DrawStatus
 
 
-    .org 1956   
+
+    .org $191a
+DrawScoreHead:
+    LDA #$1c
+    STA MesLen 
+    LDA #$1e
+    STA ScrCoord
+    LDA #$24
+    STA ScrCoord+1
+    LDA #$e4
+    STA MesAddr
+    LDA #$1a
+    STA MesAddr+1
+    JMP PrintMessage
+
+    .org $1956   
 DrawStatus:
 ; Draw score and credits
-    JSR ClearScreen
-    JMP DrawStatus
+    ;JSR ClearScreen
+    JSR DrawScoreHead
 
     .org $1A5c
 ClearScreen:
     LDY #$00
-    LDA $03
+    LDA #$00
     STA ($00),Y
     INY
     CPY $00
@@ -62,10 +127,18 @@ ClearScreen:
     LDA $01
     CMP #$40
     BNE $1a5e   ; jump to CleanScreen line 2 
-    brk
     LDA #$24
     STA $01
     RTS
+
+; DATA
+
+    .org $1ae4
+    ; " SCORE<1> HI-SCORE SCORE<2>"
+    .byte $26, $12, $02, $0E, $11, $04, $24, $1B, $25, $26, $07, $08
+    .byte $3F, $12, $02, $0E, $11, $04, $26, $12, $02, $0E, $11, $04
+    .byte $24, $1C, $25, $26                     
+ 
 
  
     .org $1E00

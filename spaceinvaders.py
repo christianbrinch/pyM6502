@@ -80,13 +80,13 @@ def horizontal_scanning():
 
         for scanline in range(SCANLINES):
             # Simulate drawing one scanline
-            base_addr = 0x2400+(28*scanline)
+            base_addr = 0x2400+(32*scanline)
             pixels = np.zeros((WIDTH, 3), dtype=np.uint8)
 
             for i in range(32):
                 byte = mem[base_addr + i]
                 for bit in range(8):
-                    pixels[i * 8 + (7 - bit)] = 255 if (byte & (1 << bit)) else 0  # Reverse bit order
+                    pixels[i * 8 + (bit)] = 255 if (byte & (1 << bit)) else 0  # Reverse bit order
             pygame.surfarray.pixels3d(screen)[:, scanline, :] = pixels
 
             # Emulated interrupts

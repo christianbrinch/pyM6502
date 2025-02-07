@@ -33,6 +33,9 @@ DrawChar:
 ; Determine the character's address from the character pointer
     LDY #$03
     STA A
+    LDA #$00
+    STA A+1
+    LDA A
 DCloop:
     CLC
     ADC A

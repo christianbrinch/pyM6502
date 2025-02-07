@@ -13,7 +13,8 @@ SCANLINE_TIME = FRAME_TIME / (SCANLINES + 38)  # 38 lines of vblank
 
 # Initialize Pygame
 pygame.init()
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
+#screen = pygame.display.set_mode((WIDTH, HEIGHT))
+screen = pygame.display.set_mode((HEIGHT, WIDTH))
 pygame.display.set_caption("SI")
 clock = pygame.time.Clock()
 
@@ -87,7 +88,8 @@ def horizontal_scanning():
                 byte = mem[base_addr + i]
                 for bit in range(8):
                     pixels[i * 8 + (bit)] = 255 if (byte & (1 << bit)) else 0  # Reverse bit order
-            pygame.surfarray.pixels3d(screen)[:, scanline, :] = pixels
+
+            pygame.surfarray.pixels3d(screen)[scanline, :, :] = pixels[::-1] # Rotate screen as per SI cabinet design
 
             # Emulated interrupts
             #if scanline == 127:

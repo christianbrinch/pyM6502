@@ -1,13 +1,6 @@
     .org $0000
-
-MesLen:
-    .byte $00       ; Message length
-MesAddr:
-    .word $0000     ; Message address
-
-SPRITE_PTR:
-    .word $1e00
-
+A:
+    .word $0000
 DE:
     .word $0000
 HL:
@@ -15,33 +8,46 @@ HL:
 
     .org $08f3
 PrintMessage:
-    LDX #$00
-    LDA (MesAddr,X)
-    STA SPRITE_PTR
-    LDA #$1e
-    STA SPRITE_PTR+1
+    LDY #$00
+    TXA
+    PHA
+    LDA DE
+    PHA
+    LDA DE+1
+    PHA
+    LDA (DE),Y
     JSR DrawChar
-    INC MesAddr
-    DEC MesLen
-    LDA MesLen
-    CMP #$00
+    PLA
+    STA DE+1
+    PLA
+    STA DE
+    PLA
+    TAX
+    INC DE
+    DEX
+    CPX #$00
     BNE PrintMessage
     RTS
 
 DrawChar:
 ; Determine the character's address from the character pointer
-    LDX #$03
+    LDY #$03
+    STA A
 DCloop:
-    LDA SPRITE_PTR
     CLC
-    ADC SPRITE_PTR
-    STA SPRITE_PTR
+    ADC A
+    STA A
     BCC DCskip
-    INC SPRITE_PTR+1
+    INC A+1
 DCskip:
-    DEX
-    CPX #$00
+    DEY
+    CPY #$00
     BNE DCloop
+    STA DE
+    LDA A+1
+    ADC #$1e
+    STA DE+1
+
     JMP DrawSimpSprite
 
     .org $09ad
@@ -53,7 +59,7 @@ Print4Digits:
 DrawHexByte:
 ; Display 2 digits in A to the screen at HL
     PHA
-    ROR ; <-- this fucks up
+    ROR
     ROR
     ROR
     ROR
@@ -66,7 +72,27 @@ DrawHexByte:
 
 Bump2NumberChar:
     ADC #$1a
+    STA A
+    LDA #$1e
+    STA A+1
     JMP DrawChar
+
+    .org $0ab1
+OneSecDelay:
+    LDA #$40
+    JMP WaitOnDelay
+
+    .org $0ad7
+WaitOnDelay:
+    brk
+
+    .org $0aea
+; Splash screen loop
+    LDA #$00
+    ; STA SOUND1    Turn off sound
+    ; STA SOUND2    Turn off sound
+    ; Enable interupt here
+    JSR OneSecDelay
 
 
     .org $0c00
@@ -105,10 +131,31 @@ ScanLine224:
     .org $0c8c
     JMP $0c82
 
+    .org $0d00
+; z80's $0100 has been moved here
+    .org $0de4
+CopyRAMMirror:
+    LDX #$c0
+    LDY #$00
+    LDA #$00
+    STA DE
+    LDA #$1b
+    STA DE+1
+    LDA #$00
+    STA HL
+    LDA #$20
+    STA HL+1
+    JMP BlockCopy
+
+
+
+
+
     .org $1439
 DrawSimpSprite:
     LDY #$00
-    LDA (SPRITE_PTR), Y
+    LDX #$00
+    LDA (DE), Y
     STA (HL, X)
     CLC
     LDA HL
@@ -126,26 +173,31 @@ DSSskip:
 
     .org $18D4
 init:
-    .byte $ea, $ea, $ea, $ea, $ea, $ea, $ea, $ea
+    LDX #$00
+    JSR $0de6       ; This is the copy-rom-to-ram, but skipping the first insctruction
     JSR DrawStatus
+    LDA #$08        ; Load 8...
+    STA $20cf       ; ...into aShotReloadRate variable
+    JMP $0aea       ; Jump to top of splash screen loop
+
 
 
 
     .org $191a
 DrawScoreHead:
-    LDA #$1c
-    STA MesLen
+    LDX #$1c
     LDA #$1e
     STA HL
     LDA #$24
     STA HL+1
     LDA #$e4
-    STA MesAddr
+    STA DE
     LDA #$1a
-    STA MesAddr+1
+    STA DE+1
     JMP PrintMessage
 
 DrawPlayer1Score:
+
     LDA #$f8
     STA HL
     LDA #$20
@@ -171,21 +223,26 @@ DrawScore:
     TAX
     INC HL
     LDA (HL),Y
-    STA HL
-    STX HL+1
+    STA HL+1
+    STX HL
     JMP Print4Digits
 
 
-
-
-
+    .org $1a32
+BlockCopy:
+    LDA (DE), Y
+    STA (HL), Y
+    INY
+    DEX
+    CPX #$00
+    BNE BlockCopy
+    RTS
 
 
 DrawStatus:
 ; Draw score and credits
     ;JSR ClearScreen
     JSR DrawScoreHead
-    brk
     JSR DrawPlayer1Score
     JSR DrawPlayer2Score
 
@@ -205,7 +262,7 @@ ClearScreen:
     STA $01
     RTS
 
-; DATA
+; Static DATA ROM area below
 
     .org $1ae4
     ; " SCORE<1> HI-SCORE SCORE<2>"
@@ -213,7 +270,41 @@ ClearScreen:
     .byte $3F, $12, $02, $0E, $11, $04, $26, $12, $02, $0E, $11, $04
     .byte $24, $1C, $25, $26
 
+    .org $1b00
+;-------------------------- RAM initialization -----------------------------
+; Coppied to RAM (2000) C0 bytes as initialization.
+    .byte $01, $00, $00, $10, $00, $00, $00, $00, $02, $78, $38, $78, $38, $00, $F8, $00
+    .byte $00, $80, $00, $8E, $02, $FF, $05, $0C, $60, $1C, $20, $30, $10, $01, $00, $00
+    .byte $00, $00, $00, $BB, $03, $00, $10, $90, $1C, $28, $30, $01, $04, $00, $FF, $FF
+    .byte $00, $00, $02, $76, $04, $00, $00, $00, $00, $00, $04, $EE, $1C, $00, $00, $03
+    .byte $00, $00, $00, $B6, $04, $00, $00, $01, $00, $1D, $04, $E2, $1C, $00, $00, $03
+    .byte $00, $00, $00, $82, $06, $00, $00, $01, $06, $1D, $04, $D0, $1C, $00, $00, $03
+    .byte $FF, $00, $C0, $1C, $00, $00, $10, $21, $01, $00, $30, $00, $12, $00, $00, $00
+    .org $1b70
+MesssageP1:
+; "PLAY PLAYER<1>"
+    .byte $0F, $0B, $00, $18, $26, $0F, $0B, $00, $18, $04, $11, $24, $1B, $25, $FC, $00
 
+    .byte $01, $FF, $FF, $00, $00, $00, $20, $64, $1D, $D0, $29, $18, $02, $54, $1D, $00
+    .byte $08, $00, $06, $00, $00, $01, $40, $00, $01, $00, $00, $10, $9E, $00, $20, $1C
+
+AlienSprCYA:
+; Alien sprite type C pulling upside down Y
+    .byte $00, $03, $04, $78, $14, $13, $08, $1A, $3D, $68, $FC, $FC, $68, $3D, $1A, 00
+
+    .byte $00, $00, $01, $B8, $98, $A0, $1B, $10, $FF, $00, $A0, $1B, $00, $00, $00, $00
+
+; Shot descriptor for splash shooting the extra "C"
+    .byte $00, $10, $00, $0E, $05, $00, $00, $00, $00, $00, $07, $D0, $1C, $C8, $9B, $03
+
+AlienSprCYB:
+; Alien sprite type C pulling upside down Y - alternate
+    .byte $00, $00, $03, $04, $78, $14, $0B, $19, $3A, $6D, $FA, $FA, $6D, $3A, $19, $00
+
+; More RAM initialization copied by 18D9
+    .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $01, $74, $1F, $00
+    .byte $80, $00, $00, $00, $00, $00, $1C, $2F, $00, $00, $1C, $27, $00, $00, $1C, $39
+;--------------------------- End of RAM initialization copy -------------------------
 
     .org $1E00
 Characters:

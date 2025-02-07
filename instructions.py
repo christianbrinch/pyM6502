@@ -188,21 +188,20 @@ class Set:
         obj.flag_z = bool(value)
 
     def ror(self, obj, mode):
-        ''' Rotate bits to the left '''
+        ''' Rotate bits to the right '''
         if mode == 'acc':
             value = obj.reg_a
-            obj.flag_n = bool(int(format(value, '08b')[-8]))
-            obj.flag_c = bool(int(format(value, '08b')[-1]))
-            value = max((value >> 1) + int(obj.flag_c)*0xf0, 0xff)
+            obj.flag_c = bool(value & (1<<0))
+            value = (value >> 1) | int(obj.flag_c) * 0x80
             obj.reg_a = value
         else:
             value = eval("self.get_"+mode+"(obj)")
-            obj.flag_n = bool(int(format(value, '08b')[-8]))
-            obj.flag_c = bool(int(format(value, '08b')[-1]))
+            obj.flag_c = bool(value & (1<<0))
             addr = eval("self.put_"+mode+"(obj)")
-            value = max((value >> 1) + int(obj.flag_c)*0xf0, 0xff)
+            value = (value >> 1) | int(obj.flag_c) * 0x80
             obj.write_byte(addr, value)
-        obj.flag_z = bool(value)
+        obj.flag_n = bool(value & 0x80)
+        obj.flag_z = not bool(value)
 
     ''' Section 5: Logical instructions'''
 

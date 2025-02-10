@@ -43,7 +43,7 @@ def cpu_step():
             #    cpu.exec(output=True, zeropage=True, mempage=0x1a)
             #else:
             if not cpu.flag_b:
-                cpu.exec(output=True, zeropage=True, mempage=0x24)
+                cpu.exec(output=True, zeropage=True, mempage=0x20)
                 input()
             else:
                 cpu.exec(output=False)

@@ -50,7 +50,6 @@ DCskip:
     LDA A+1
     ADC #$1e
     STA DE+1
-
     JMP DrawSimpSprite
 
     .org $09ad
@@ -74,16 +73,50 @@ DrawHexByte:
     RTS
 
 Bump2NumberChar:
+    LDA #$00
+    STA A+1
     ADC #$1a
     STA A
-    LDA #$1e
-    STA A+1
     JMP DrawChar
+
+PrintMessageDel:
+    LDY #$00
+    LDA DE
+    PHA
+    LDA DE+1
+    PHA
+    LDA (DE),Y
+    JSR DrawChar
+    PLA
+    STA DE+1
+    PLA 
+    STA DE
+;    LDA #$07    ; A small delay between characters
+;    STA $20c0   ; this is controlled by the screen interrupt
+;PMDloop:
+;    LDA $20c0
+;    DEC
+;    BNE PMDloop
+    INC DE
+    DEX
+    CPX #$00
+    BNE PrintMessageDel
+    RTS
 
     .org $0ab1
 OneSecDelay:
     LDA #$40
     JMP WaitOnDelay
+
+PrintNearMidscreen:
+; Message to center of screen.
+; Only used in one place for "SPACE  INVADERS"
+    LDA #$14
+    STA HL
+    LDA #$2b
+    STA HL+1
+    LDX #$0f
+    JMP PrintMessageDel
 
     .org $0ad7
 WaitOnDelay:
@@ -95,7 +128,36 @@ WaitOnDelay:
     ; STA SOUND1    Turn off sound
     ; STA SOUND2    Turn off sound
     ; Enable interupt here
-    JSR OneSecDelay
+    ; JSR OneSecDelay depends on interupts
+    brk
+    LDA #$17
+    STA HL
+    LDA #$30
+    STA HL+1
+    LDX #$04
+    LDA $20ec   ; Load splashAnimate into A
+    AND $20ec   ; Set flags based on type
+    CMP #$00    
+    BNE OBE8            ; Not 0: print normal "PLAY"
+    LDA #$fa
+    STA DE
+    LDA #$1c            ; Else: print "PLAupsidedown Y"
+    STA DE+1
+    JSR PrintMessageDel ; Print message with delay
+    LDA #$af
+    STA DE
+    LDA #$1d
+    STA DE+1
+OBE8return:    
+    JSR PrintNearMidscreen
+    
+OBE8:    
+    LDA #$ab
+    STA DE
+    LDA #$1d
+    STA DE+1
+    JSR PrintMessageDel
+    JMP OBE8return 
 
 
     .org $0c00
@@ -200,7 +262,6 @@ DrawScoreHead:
     JMP PrintMessage
 
 DrawPlayer1Score:
-
     LDA #$f8
     STA HL
     LDA #$20
@@ -230,6 +291,33 @@ DrawScore:
     STX HL
     JMP Print4Digits
 
+PrintCreditLabel:
+; Print message "CREDIT "
+    LDX #$07
+    LDA #$01
+    STA HL
+    LDA #$35
+    STA HL+1
+    LDA #$a9
+    STA DE
+    LDA #$1f
+    STA DE+1
+    JMP PrintMessage
+
+DrawNumCredits:
+    LDA $20eb
+    LDA #$01
+    STA HL
+    LDA #$3c
+    STA HL+1
+    JMP DrawHexByte
+
+PrintHiScore:
+    LDA #$f4
+    STA HL
+    LDA #$20
+    STA HL+1
+    JMP DrawScore    
 
     .org $1a32
 BlockCopy:
@@ -244,25 +332,33 @@ BlockCopy:
 
 DrawStatus:
 ; Draw score and credits
-    ;JSR ClearScreen
+    JSR ClearScreen
     JSR DrawScoreHead
     JSR DrawPlayer1Score
     JSR DrawPlayer2Score
+    JSR PrintHiScore
+    JSR PrintCreditLabel
+    JMP DrawNumCredits
+
 
     .org $1A5c
 ClearScreen:
     LDY #$00
     LDA #$00
-    STA ($00),Y
+    STA HL
+    LDA #$24
+    STA HL+1 
+CSstart:
+    LDA #$00
+    STA (HL),Y
     INY
     CPY $00
-    BNE $1a69 ; skip two instructions ahead
-    INC $01
-    LDA $01
+    BNE CSskip ; skip two instructions ahead
+    INC HL+1
+CSskip:
+    LDA HL+1
     CMP #$40
-    BNE $1a5e   ; jump to CleanScreen line 2
-    LDA #$24
-    STA $01
+    BNE CSstart   ; jump to CleanScreen line 2
     RTS
 
 ; Static DATA ROM area below
@@ -272,6 +368,10 @@ ClearScreen:
     .byte $26, $12, $02, $0E, $11, $04, $24, $1B, $25, $26, $07, $08
     .byte $3F, $12, $02, $0E, $11, $04, $26, $12, $02, $0E, $11, $04
     .byte $24, $1C, $25, $26
+
+    .org $1cfa
+MessagePlayUY:
+    .byte $0F, $0B, $00, $29    ; "PLAy" with an upside down 'Y' for splash screen
 
     .org $1b00
 ;-------------------------- RAM initialization -----------------------------
@@ -308,6 +408,14 @@ AlienSprCYB:
     .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $01, $74, $1F, $00
     .byte $80, $00, $00, $00, $00, $00, $1C, $2F, $00, $00, $1C, $27, $00, $00, $1C, $39
 ;--------------------------- End of RAM initialization copy -------------------------
+
+    .org $1dab
+MessagePlayY:
+    .byte $0F, $0B, $00, $18   ; "PLAY" with normal Y
+
+MessageInvaders:
+; "SPACE  INVADERS"
+    .byte $12, $0F, $00, $02, $04, $26, $26, $08, $0D, $15, $00, $03, $04, $11, $12 
 
     .org $1E00
 Characters:
@@ -358,6 +466,10 @@ Characters:
 
     .byte $00, $22, $14, $7F, $14, $22, $00, $00
     .byte $00, $03, $04, $78, $04, $03, $00, $00
+
+    .org $1fa9
+MessageCredit:
+    .byte $02, $11, $04, $03, $08, $13, $26       ; "CREDIT " (with space on the end)
 
 ; RAM
 ; Starting at 0x2000

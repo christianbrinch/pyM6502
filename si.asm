@@ -5,6 +5,9 @@ DE:
     .word $0000
 HL:
     .word $0000
+BC:
+    .word $0000
+
 
     .org $08f3
 PrintMessage:
@@ -50,6 +53,7 @@ DCskip:
     LDA A+1
     ADC #$1e
     STA DE+1
+    LDX #$08
     JMP DrawSimpSprite
 
     .org $09ad
@@ -79,8 +83,25 @@ Bump2NumberChar:
     STA A
     JMP DrawChar
 
+Animate:
+; Start the ISR moving the sprite. Return when done.
+    LDA #$02
+    STA $20c1
+Aniloop:
+    LDA $20cb
+    AND $20cb
+    CMP #$00
+    BEQ Aniloop
+    LDA #$00
+    STA $20c1
+    RTS
+
+
+
 PrintMessageDel:
     LDY #$00
+    TXA
+    PHA
     LDA DE
     PHA
     LDA DE+1
@@ -89,14 +110,17 @@ PrintMessageDel:
     JSR DrawChar
     PLA
     STA DE+1
-    PLA 
+    PLA
     STA DE
-;    LDA #$07    ; A small delay between characters
-;    STA $20c0   ; this is controlled by the screen interrupt
-;PMDloop:
-;    LDA $20c0
-;    DEC
-;    BNE PMDloop
+    PLA
+    TAX
+    LDA #$07    ; A small delay between characters
+    STA $20c0   ; this is controlled by the screen interrupt
+PMDloop:
+    LDA $20c0
+    SBC #$01
+    CMP #$00
+    BNE PMDloop
     INC DE
     DEX
     CPX #$00
@@ -107,6 +131,11 @@ PrintMessageDel:
 OneSecDelay:
     LDA #$40
     JMP WaitOnDelay
+
+TwoSecDelay:
+    LDA #$80
+    JMP WaitOnDelay
+
 
 PrintNearMidscreen:
 ; Message to center of screen.
@@ -120,16 +149,29 @@ PrintNearMidscreen:
 
     .org $0ad7
 WaitOnDelay:
-    brk
+    STA $20c0
+WODloop:
+    LDA $20c0
+    AND $20c0
+    CMP #$00
+    BNE WODloop
+    RTS
 
-    .org $0aea
+IniSplashAni:
+    LDA #$c2
+    STA HL
+    LDA #$20
+    STA HL+1
+    LDX #$0c
+    JMP BlockCopy
+
+
 ; Splash screen loop
     LDA #$00
     ; STA SOUND1    Turn off sound
     ; STA SOUND2    Turn off sound
-    ; Enable interupt here
-    ; JSR OneSecDelay depends on interupts
-    brk
+    CLI
+    JSR OneSecDelay
     LDA #$17
     STA HL
     LDA #$30
@@ -137,7 +179,7 @@ WaitOnDelay:
     LDX #$04
     LDA $20ec   ; Load splashAnimate into A
     AND $20ec   ; Set flags based on type
-    CMP #$00    
+    CMP #$00
     BNE OBE8            ; Not 0: print normal "PLAY"
     LDA #$fa
     STA DE
@@ -148,16 +190,49 @@ WaitOnDelay:
     STA DE
     LDA #$1d
     STA DE+1
-OBE8return:    
+OBE8return:
     JSR PrintNearMidscreen
-    
-OBE8:    
+    JSR OneSecDelay
+    JSR DrawAdvTable
+    JSR TwoSecDelay
+    LDA $20ec   ; Load splashAnimate into A
+    AND $20ec   ; Set flags based on type
+    CMP #$00
+    JMP PlayDemo
+
+; Animate alien replacing upside down Y with normal Y
+    LDA #$95
+    STA DE
+    LDA #$1a
+    STA DE+1
+    JSR IniSplashAni
+    JSR Animate         ; Depend on interupts
+    JSR OneSecDelay
+    LDA #$c9
+    STA DE
+    LDA #$1f
+    STA DE+1
+    JSR IniSplashAni
+    JSR Animate         ; Depend on interupts
+    JSR OneSecDelay
+    LDA #$b7
+    STA HL
+    LDA #$33
+    STA HL+1
+    LDX #$0a
+    ;JSR ClearSmallSprite
+    JSR TwoSecDelay
+
+PlayDemo:
+    brk
+
+OBE8:
     LDA #$ab
     STA DE
     LDA #$1d
     STA DE+1
     JSR PrintMessageDel
-    JMP OBE8return 
+    JMP OBE8return
 
 
     .org $0c00
@@ -180,13 +255,15 @@ ScanLine96:
 ScanLine224:
 ; end-of-screen interrupt (happens at line 224)
     SEI
-    PHA
+    PHA             ; Push all registers
     TXA
     PHA
     TYA
     PHA
 
-    PLA
+    DEC $20c0       ; Decrement general delay counter
+
+    PLA             ; Pull all registers
     TAY
     PLA
     TAX
@@ -219,9 +296,10 @@ CopyRAMMirror:
     .org $1439
 DrawSimpSprite:
     LDY #$00
-    LDX #$00
+DSSloop:
     LDA (DE), Y
-    STA (HL, X)
+    STA (HL), Y
+    INC DE
     CLC
     LDA HL
     ADC #$20
@@ -229,12 +307,85 @@ DrawSimpSprite:
     BCC DSSskip
     INC HL+1
 DSSskip:
-    INY
-    CPY #$08
-    BNE $143b
+    DEX
+    CPX #$00
+    BNE DSSloop
+    RTS
+
+    .org $1815
+DrawAdvTable:
+; Draw "SCORE ADVANCE TABLE"
+    LDA #$10
+    STA HL
+    LDA #$28
+    STA HL+1
+    LDA #$a3
+    STA DE
+    LDA #$1c
+    STA DE+1
+    LDX #$15
+    JSR PrintMessage
+    LDA #$0a
+    STA $206c
+    LDA #$be
+    STA BC
+    LDA #$1d
+    STA BC+1
+DATloop:
+    JSR ReadPriStruct
+    BCS DATmoveon
+    JSR Draw16ByteSprite
+    JMP DATloop
+;
+    JSR OneSecDelay   ; This line of code is never reached
+DATmoveon:
+    LDA #$cf
+    STA BC
+    LDA #$1d
+    STA BC+1
+DATloop2:
+    JSR ReadPriStruct
+    BCS DATexit
+    JSR PrintScoreMessage
+    JMP DATloop2
+DATexit:
+    RTS
+
+Draw16ByteSprite:
+    LDX #$10
+    JSR DrawSimpSprite
+    RTS
+
+PrintScoreMessage:
+    LDX $206c
+    JSR PrintMessageDel
     RTS
 
 
+
+ReadPriStruct:
+; Read a 4-byte print-structure pointed to by BC
+; HL=Screen coordiante, DE=pointer to message
+; If the first byte is FF then return with Carry Set, Carry Cleared otherwise.
+    LDY #$00
+    LDA (BC), Y
+    CMP #$ff
+    SEC
+    BEQ RPSexit
+    STA HL
+    INC BC
+    LDA (BC), Y
+    STA HL+1
+    INC BC
+    LDA (BC), Y
+    STA DE
+    INC BC
+    LDA (BC), Y
+    STA DE+1
+    INC BC
+    CLC
+RPSexit:
+    RTS
 
     .org $18D4
 init:
@@ -317,7 +468,7 @@ PrintHiScore:
     STA HL
     LDA #$20
     STA HL+1
-    JMP DrawScore    
+    JMP DrawScore
 
     .org $1a32
 BlockCopy:
@@ -347,7 +498,7 @@ ClearScreen:
     LDA #$00
     STA HL
     LDA #$24
-    STA HL+1 
+    STA HL+1
 CSstart:
     LDA #$00
     STA (HL),Y
@@ -361,13 +512,47 @@ CSskip:
     BNE CSstart   ; jump to CleanScreen line 2
     RTS
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ; Static DATA ROM area below
+
+    .org $1a93
+    .byte $00, $00
+; Splash screen animation (replacing y)
+    .byte $00, $00, $FF, $B8, $FE, $20, $1C, $10, $9E, $00, $20, $1C
+
 
     .org $1ae4
     ; " SCORE<1> HI-SCORE SCORE<2>"
     .byte $26, $12, $02, $0E, $11, $04, $24, $1B, $25, $26, $07, $08
     .byte $3F, $12, $02, $0E, $11, $04, $26, $12, $02, $0E, $11, $04
     .byte $24, $1C, $25, $26
+
+    .org $1c99
+Message10Pts:
+    ; Ran out of space at 1DFE
+    .byte $27, $1B, $1A, $26, $0F, $0E, $08, $0D, $13, $12    ; "=10 POINTS"
+
+MessageAdv:
+    .byte $28, $12, $02, $0E, $11, $04, $26, $00
+    .byte $03, $15, $00, $0D, $02, $04, $26, $13
+    .byte $00, $01, $0B, $04, $28
+
 
     .org $1cfa
 MessagePlayUY:
@@ -394,7 +579,7 @@ MesssageP1:
 AlienSprCYA:
 ; Alien sprite type C pulling upside down Y
     .byte $00, $03, $04, $78, $14, $13, $08, $1A, $3D, $68, $FC, $FC, $68, $3D, $1A, 00
-
+; Splash screen animation (replacing y)
     .byte $00, $00, $01, $B8, $98, $A0, $1B, $10, $FF, $00, $A0, $1B, $00, $00, $00, $00
 
 ; Shot descriptor for splash shooting the extra "C"
@@ -409,13 +594,55 @@ AlienSprCYB:
     .byte $80, $00, $00, $00, $00, $00, $1C, $2F, $00, $00, $1C, $27, $00, $00, $1C, $39
 ;--------------------------- End of RAM initialization copy -------------------------
 
+    .org $1c00
+AlienImages:
+; Alien sprite type A,B, and C at positions 0
+    .byte $00, $00, $39, $79, $7A, $6E, $EC, $FA, $FA, $EC, $6E, $7A, $79, $39, $00, $00
+    .byte $00, $00, $00, $78, $1D, $BE, $6C, $3C, $3C, $3C, $6C, $BE, $1D, $78, $00, $00
+    .byte $00, $00, $00, $00, $19, $3A, $6D, $FA, $FA, $6D, $3A, $19, $00, $00, $00, $00
+; Alien sprite type A,B, and C at positions 1
+    .byte $00, $00, $38, $7A, $7F, $6D, $EC, $FA, $FA, $EC, $6D, $7F, $7A, $38, $00, $00
+    .byte $00, $00, $00, $0E, $18, $BE, $6D, $3D, $3C, $3D, $6D, $BE, $18, $0E, $00, $00
+    .byte $00, $00, $00, $00, $1A, $3D, $68, $FC, $FC, $68, $3D, $1A, $00, $00, $00, $00
+
+    .org $1d64
+SpriteSaucer:
+    .byte $00, $00, $00, $00, $04, $0C, $1E, $37, $3E, $7C, $74, $7E
+    .byte $7E, $74, $7C, $3E, $37, $1E, $0C, $04, $00, $00, $00, $00
+
+
     .org $1dab
 MessagePlayY:
     .byte $0F, $0B, $00, $18   ; "PLAY" with normal Y
 
 MessageInvaders:
 ; "SPACE  INVADERS"
-    .byte $12, $0F, $00, $02, $04, $26, $26, $08, $0D, $15, $00, $03, $04, $11, $12 
+    .byte $12, $0F, $00, $02, $04, $26, $26, $08, $0D, $15, $00, $03, $04, $11, $12
+
+; Tables used to draw "SCORE ADVANCE TABLE" information
+    .byte $0E, $2C, $68, $1D           ; Flying Saucer
+    .byte $0C, $2C, $20, $1C           ; Alien C, sprite 0
+    .byte $0A, $2C, $40, $1C           ; Alien B, sprite 1
+    .byte $08, $2C, $00, $1C           ; Alien A, sprite 0
+    .byte $FF                          ; End of list
+
+AlienScoreTable:
+    .byte $0E, $2E, $E0, $1D           ; "=? MYSTERY"
+    .byte $0C, $2E, $EA, $1D           ; "=30 POINTS"
+    .byte $0A, $2E, $F4, $1D           ; "=20 POINTS"
+    .byte $08, $2E, $99, $1C           ; "=10 POINTS"
+    .byte $FF                          ; End of list
+
+MessageMyst:
+    .byte $27, $38, $26, $0C, $18, $12, $13, $04, $11, $18   ; "=? MYSTERY"
+
+Message30Pts:
+    .byte $27, $1D, $1A, $26, $0F, $0E, $08, $0D, $13, $12   ; "=30 POINTS"
+
+Message20Pts:
+    .byte $27, $1C, $1A, $26, $0F, $0E, $08, $0D, $13, $12   ; "=20 POINTS"
+
+    .byte $00, $00 ; Padding to have char table start at 0x1e00
 
     .org $1E00
 Characters:
@@ -467,9 +694,17 @@ Characters:
     .byte $00, $22, $14, $7F, $14, $22, $00, $00
     .byte $00, $03, $04, $78, $04, $03, $00, $00
 
+
     .org $1fa9
 MessageCredit:
     .byte $02, $11, $04, $03, $08, $13, $26       ; "CREDIT " (with space on the end)
+
+    .org $1fc0
+    .byte $00, $20, $40, $4d, $50, $20, $00, $00  ; "?"
+
+    .byte $00
+; Splash animation (Replacing y)
+    .byte $00, $00, $FF, $B8, $FF, $80, $1F, $10, $97, $00, $80, $1F
 
 ; RAM
 ; Starting at 0x2000

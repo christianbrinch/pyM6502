@@ -43,11 +43,10 @@ def cpu_step():
             #    cpu.exec(output=True, zeropage=True, mempage=0x1a)
             #else:
             if not cpu.flag_b:
-                cpu.exec(output=True, zeropage=True, mempage=0x20)
+                cpu.exec(output=True, zeropage=True, mempage=0x01)
                 input()
             else:
                 cpu.exec(output=False)
-
         else:
             # Write IRQ handler address to IRQ vector
             cpu.write_word(0xfffe, IRQ)
@@ -56,6 +55,7 @@ def cpu_step():
             cpu.stack_pointer -= 0x01
             cpu.write_byte(cpu.stack_pointer+0x100, cpu.program_counter%256)
             cpu.stack_pointer -= 0x01
+            '''
             # Push status flags
             status = '0b'+str(int(cpu.flag_n))+str(int(cpu.flag_v))+'10'+str(int(cpu.flag_d))+str(int(cpu.flag_i))+str(int(cpu.flag_z))+str(int(cpu.flag_c))
             if int(status,0) > 255:
@@ -63,6 +63,7 @@ def cpu_step():
                 input()
             cpu.write_byte(cpu.stack_pointer+0x100, int(status,0))
             cpu.stack_pointer -= 0x01
+            '''
             # Read interrupt vector at $fffe-$ffff
             cpu.program_counter = cpu.read_word(0xfffe)
             IRQ = False
@@ -91,12 +92,11 @@ def horizontal_scanning():
 
             pygame.surfarray.pixels3d(screen)[scanline, :, :] = pixels[::-1] # Rotate screen as per SI cabinet design
 
-            # Emulated interrupts
-            #if scanline == 127:
-            #    IRC = 0x0c08
-#            if scanline == 223:
-#        if not cpu.flag_i:
-#            IRQ = 0x0c10
+
+        # Emulated interrupts
+        if not cpu.flag_i:
+            IRQ = 0x0c10
+
 
         pygame.display.flip()
         #while time.time() < frame_start + FRAME_TIME:

@@ -83,7 +83,7 @@ class Processor:
         self.flag_v = False  # status flag - Overflow Flag
         self.flag_b = True   # status flag - Break Command
         self.flag_d = False  # status flag - Decimal Mode Flag
-        self.flag_i = False   # status flag - Interrupt Disable
+        self.flag_i = True   # status flag - Interrupt Disable
         self.flag_z = True   # status flag - Zero Flag
         self.flag_c = False  # status flag - Carry Flag
 
@@ -101,7 +101,7 @@ class Processor:
 
         self.flag_b = True             #
         self.flag_d = False            # Decimal
-        self.flag_i = False             # Interrupt disable
+        self.flag_i = True             # Interrupt disable
         self.flag_z = True             # Zero
         self.flag_c = False            # Carry
 

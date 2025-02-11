@@ -301,10 +301,10 @@ class Set:
         ''' Decrement memory by 1 '''
         addr = eval("self.put_"+mode+"(obj)")
         value = obj.read_byte(addr)
-        value -= 1
+        value = (value - 1) % 256
         obj.write_byte(addr, value)
         obj.flag_z = bool(not value)
-        obj.flag_n = bool(int(format(value, '08b')[-8]))
+        obj.flag_n = obj.flag_n = bool(value & 0x80)
 
     def dex(self, obj, mode):
         ''' Decrement register X '''
@@ -367,7 +367,7 @@ class Set:
 
     def rti(self, obj, mode):
         ''' Return from interrupt: 6 cycles '''
-        obj.stack_pointer += 0x01
+        obj.stack_pointer += 0x00
         status = bin(obj.read_byte(obj.stack_pointer+0x100))[2:].zfill(8)
         obj.flag_n = bool(status[0])
         obj.flag_v = bool(status[1])

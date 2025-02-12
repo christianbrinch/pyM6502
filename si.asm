@@ -7,6 +7,17 @@ HL:
     .word $0000
 BC:
     .word $0000
+TMP:
+    .word $0000
+
+
+    .org $00a0
+INP0:
+    .byte $00
+INP1:
+    .byte $00
+INP2:
+    .byte $00
 
 
     .org $08f3
@@ -136,6 +147,17 @@ TwoSecDelay:
     LDA #$80
     JMP WaitOnDelay
 
+ISRSplTasks:
+    LDA $20c1
+    CLC
+    ROR
+    ;BCS SplashDemo
+    ROR
+    BCS SplashSpriteTrampoline
+    ROR
+    ;BCS SplashSquiggly
+    RTS
+
 
 PrintNearMidscreen:
 ; Message to center of screen.
@@ -147,7 +169,7 @@ PrintNearMidscreen:
     LDX #$0f
     JMP PrintMessageDel
 
-    .org $0ad7
+
 WaitOnDelay:
     STA $20c0
 WODloop:
@@ -165,7 +187,15 @@ IniSplashAni:
     LDX #$0c
     JMP BlockCopy
 
+SplashSpriteTrampoline:
+    JMP SplashSprite
 
+
+SplashScreenloop:
+    LDA #$00        ; for
+    STA $20ec       ; debugging
+    LDA #$02        ; purposes
+    STA $20c1       ; only
 ; Splash screen loop
     LDA #$00
     ; STA SOUND1    Turn off sound
@@ -198,7 +228,7 @@ OBE8return:
     LDA $20ec   ; Load splashAnimate into A
     AND $20ec   ; Set flags based on type
     CMP #$00
-    JMP PlayDemo
+    BNE PlayDemo
 
 ; Animate alien replacing upside down Y with normal Y
     LDA #$95
@@ -235,6 +265,7 @@ OBE8:
     JMP OBE8return
 
 
+
     .org $0c00
 Reset:
     NOP
@@ -262,7 +293,28 @@ ScanLine224:
     PHA
 
     DEC $20c0       ; Decrement general delay counter
+    ; coin stuff goes here (0x0020 - 0x0041)
+    LDA $20e9
+    AND $20e9
+    CMP #$00
+    BEQ RestoreAndOut
+    LDA $20ef
+    AND $20ef
+    CMP #$00
+    BNE MainGamePLayTimingLoop
+    LDA $20eb
+    AND $20eb
+    CMP #$00
+    BNE CreditButNoGame
+    JSR ISRSplTasks
+    JMP RestoreAndOut
 
+CreditButNoGame:
+
+
+MainGamePLayTimingLoop:
+
+RestoreAndOut:
     PLA             ; Pull all registers
     TAY
     PLA
@@ -271,7 +323,26 @@ ScanLine224:
     RTI
 
     .org $0c8c
-    JMP $0c82
+; midscreen interupt continues here
+    JMP RestoreAndOut
+
+
+    .org $0cd9
+AddDelta:
+    INC HL
+    LDA (HL), Y
+    STA BC
+    INC HL
+    TXA
+    ADC (HL), Y
+    STA (HL), Y
+    INC HL
+    LDA BC
+    ADC (HL), Y
+    STA (HL), Y
+    RTS
+
+
 
     .org $0d00
 ; z80's $0100 has been moved here
@@ -288,7 +359,6 @@ CopyRAMMirror:
     LDA #$20
     STA HL+1
     JMP BlockCopy
-
 
 
 
@@ -311,6 +381,54 @@ DSSskip:
     CPX #$00
     BNE DSSloop
     RTS
+
+    .org $15d3
+DrawSprite:
+    ;JSR CnvtPixNumber
+    LDA HL
+    PHA
+    LDA HL+1
+    PHA
+DrSploop:
+    LDA BC
+    PHA
+    LDA HL
+    PHA
+    LDA HL+1
+    PHA
+    LDA (DE), Y
+    ; here goes shift stuff
+    ; More shift stuff
+    STA (HL), Y
+    INC HL
+    INC DE
+    LDA #$00
+    ; put the zero into shift registers
+    ; more shift stuff
+    STA (HL), Y
+    PLA
+    STA HL+1
+    PLA
+    STA HL
+    CLC
+    ADC #$20
+    STA HL
+    BCC DrSpskip
+    INC HL+1
+DrSpskip:
+    PLA
+    STA BC
+    DEC BC
+    BEQ DrSploop
+    PLA
+    STA HL+1
+    PLA
+    STA HL
+    RTS
+
+
+
+
 
     .org $1815
 DrawAdvTable:
@@ -387,14 +505,64 @@ ReadPriStruct:
 RPSexit:
     RTS
 
-    .org $18D4
+SplashSprite:
+; Move a sprite up and down in splash mode
+    LDY #$00
+    LDA #$c2
+    STA HL
+    LDA #$20
+    STA HL+1
+    LDA (HL), Y
+    ADC #$01
+    STA (HL), Y
+    INC HL
+    LDA (HL), Y
+    TAX
+    ;JSR AddDelta
+    STA BC
+    LDA $20ca
+    CMP BC
+    BEQ SplSexit
+    LDA $20cc
+    STA HL
+    LDA $20c2
+    AND #$04
+    BNE SSnoflip
+    LDA HL
+    ADC #$30
+SSnoflip:
+    STA $20c7
+    LDA $20c5
+    STA HL
+    ;JSR ReadDesc
+    LDA DE
+    STA TMP
+    LDA DE+1
+    STA TMP+1
+    LDA HL
+    STA DE
+    LDA HL+1
+    STA DE+1
+    LDA TMP
+    STA HL
+    LDA TMP+1
+    STA HL+1
+    ;JMP DrawSprite
+    RTS
+SplSexit:
+    LDA #$01
+    STA $20cb
+    RTS
+
+
+
 init:
     LDX #$00
-    JSR $0de6       ; This is the copy-rom-to-ram, but skipping the first insctruction
+    JSR $0de6                   ; This is the copy-rom-to-ram, but skipping the first insctruction
     JSR DrawStatus
-    LDA #$08        ; Load 8...
-    STA $20cf       ; ...into aShotReloadRate variable
-    JMP $0aea       ; Jump to top of splash screen loop
+    LDA #$08                    ; Load 8...
+    STA $20cf                   ; ...into aShotReloadRate variable
+    JMP SplashScreenloop        ; Jump to top of splash screen loop
 
 
 
@@ -470,17 +638,6 @@ PrintHiScore:
     STA HL+1
     JMP DrawScore
 
-    .org $1a32
-BlockCopy:
-    LDA (DE), Y
-    STA (HL), Y
-    INY
-    DEX
-    CPX #$00
-    BNE BlockCopy
-    RTS
-
-
 DrawStatus:
 ; Draw score and credits
     JSR ClearScreen
@@ -492,7 +649,41 @@ DrawStatus:
     JMP DrawNumCredits
 
 
-    .org $1A5c
+    .org $1a32
+BlockCopy:
+    LDA (DE), Y
+    STA (HL), Y
+    INY
+    DEX
+    CPX #$00
+    BNE BlockCopy
+    RTS
+
+ReadDesc:
+    LDA (HL), Y
+    STA DE+1
+    INC HL
+    LDA (HL), Y
+    STA DE
+    INC HL
+    LDA (HL), Y
+    STA TMP
+    INC HL
+    LDA (HL), Y
+    TAX
+    INC HL
+    LDA (HL), Y
+    STA BC
+    TXA
+    STA HL
+    LDA TMP
+    STA HL+1
+    RTS
+
+
+
+
+
 ClearScreen:
     LDY #$00
     LDA #$00

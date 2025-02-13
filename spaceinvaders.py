@@ -28,7 +28,6 @@ IRQ = False
 # Screen buffer 0x2400-0x3fff = 7168 bytes(shared resource)
 buffer_lock = threading.Lock()
 
-
 def cpu_step():
     global IRQ
     global mem
@@ -38,12 +37,8 @@ def cpu_step():
     st=0
     while run:
         if not IRQ:
-            #if cpu.flag_i:
-            #    input()
-            #    cpu.exec(output=True, zeropage=True, mempage=0x1a)
-            #else:
             if not cpu.flag_b:
-                cpu.exec(output=True, zeropage=True, mempage=0x01)
+                cpu.exec(output=True, zeropage=True, mempage=0x20)
                 input()
             else:
                 cpu.exec(output=False)

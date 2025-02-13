@@ -10,6 +10,8 @@ BC:
 TMP:
     .word $0000
 
+SHFTAMNT:
+    .byte $00
 
     .org $00a0
 INP0:
@@ -194,8 +196,8 @@ SplashSpriteTrampoline:
 SplashScreenloop:
     LDA #$00        ; for
     STA $20ec       ; debugging
-    LDA #$02        ; purposes
-    STA $20c1       ; only
+    ;LDA #$02        ; purposes
+    ;STA $20c1       ; only
 ; Splash screen loop
     LDA #$00
     ; STA SOUND1    Turn off sound
@@ -237,21 +239,22 @@ OBE8return:
     STA DE+1
     JSR IniSplashAni
     JSR Animate         ; Depend on interupts
-    JSR OneSecDelay
+    brk
+    ;JSR OneSecDelay
     LDA #$c9
     STA DE
     LDA #$1f
     STA DE+1
     JSR IniSplashAni
     JSR Animate         ; Depend on interupts
-    JSR OneSecDelay
+    ;JSR OneSecDelay
     LDA #$b7
     STA HL
     LDA #$33
     STA HL+1
     LDX #$0a
     ;JSR ClearSmallSprite
-    JSR TwoSecDelay
+    ;JSR TwoSecDelay
 
 PlayDemo:
     brk
@@ -283,14 +286,30 @@ ScanLine96:
     PHA
     JMP $0c8c   ; adjust to actual address
 
+    .org $0c10
 ScanLine224:
 ; end-of-screen interrupt (happens at line 224)
     SEI
-    PHA             ; Push all registers
+    PHA             ; Push all hardware registers
     TXA
     PHA
     TYA
     PHA
+
+    LDA DE          ; Push Software registers
+    PHA
+    LDA DE+1
+    PHA
+    LDA HL
+    PHA
+    LDA HL+1
+    PHA
+    LDA BC
+    PHA
+    LDA BC+1
+    PHA
+
+
 
     DEC $20c0       ; Decrement general delay counter
     ; coin stuff goes here (0x0020 - 0x0041)
@@ -315,6 +334,19 @@ CreditButNoGame:
 MainGamePLayTimingLoop:
 
 RestoreAndOut:
+    PLA
+    STA BC+1
+    PLA
+    STA BC
+    PLA
+    STA HL+1
+    PLA
+    STA HL
+    PLA
+    STA DE+1
+    PLA
+    STA DE
+
     PLA             ; Pull all registers
     TAY
     PLA
@@ -382,9 +414,21 @@ DSSskip:
     BNE DSSloop
     RTS
 
+CnvtPixNumber:
+; Convert pixel number in HL to screen coordinate and shift amount.
+; HL gets screen coordinate.
+    LDA HL+1
+    AND #$07
+    STA SHFTAMNT
+    JMP ConvToScr
+
+
+
     .org $15d3
 DrawSprite:
-    ;JSR CnvtPixNumber
+    JSR CnvtPixNumber
+    brk
+    LDY #$00
     LDA HL
     PHA
     LDA HL+1
@@ -419,7 +463,7 @@ DrSpskip:
     PLA
     STA BC
     DEC BC
-    BEQ DrSploop
+    BNE DrSploop
     PLA
     STA HL+1
     PLA
@@ -518,23 +562,31 @@ SplashSprite:
     INC HL
     LDA (HL), Y
     TAX
-    ;JSR AddDelta
+    JSR AddDelta
     STA BC
     LDA $20ca
     CMP BC
     BEQ SplSexit
-    LDA $20cc
+    LDA $20cd
     STA HL
+    LDA $20cc
+    STA HL+1
     LDA $20c2
     AND #$04
     BNE SSnoflip
     LDA HL
     ADC #$30
-SSnoflip:
-    STA $20c7
-    LDA $20c5
     STA HL
-    ;JSR ReadDesc
+SSnoflip:
+    LDA HL
+    STA $20c8
+    LDA HL+1
+    STA $20c7
+    LDA #$c5
+    STA HL
+    LDA #$20
+    STA HL+1
+    JSR ReadDesc
     LDA DE
     STA TMP
     LDA DE+1
@@ -547,8 +599,8 @@ SSnoflip:
     STA HL
     LDA TMP+1
     STA HL+1
-    ;JMP DrawSprite
-    RTS
+    JMP DrawSprite
+
 SplSexit:
     LDA #$01
     STA $20cb
@@ -660,6 +712,7 @@ BlockCopy:
     RTS
 
 ReadDesc:
+    LDY #$00
     LDA (HL), Y
     STA DE+1
     INC HL
@@ -680,7 +733,12 @@ ReadDesc:
     STA HL+1
     RTS
 
-
+ConvToScr:
+; The screen is organized as one-bit-per-pixel.
+; In: HL contains pixel number (bbbbbbbbbbbbbppp)
+; Convert from pixel number to screen coordinates (without shift)
+; Shift HL right 3 bits (clearing the top 2 bits)
+; and set the third bit from the left.; Convert pixel number in HL to screen coordinate
 
 
 

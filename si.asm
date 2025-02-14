@@ -427,7 +427,6 @@ CnvtPixNumber:
     .org $15d3
 DrawSprite:
     JSR CnvtPixNumber
-    brk
     LDY #$00
     LDA HL
     PHA
@@ -464,10 +463,12 @@ DrSpskip:
     STA BC
     DEC BC
     BNE DrSploop
+    ; THIS LOOPS HAS A MEMORY LEEK
     PLA
     STA HL+1
     PLA
     STA HL
+
     RTS
 
 
@@ -601,6 +602,7 @@ SSnoflip:
     STA HL+1
     JMP DrawSprite
 
+
 SplSexit:
     LDA #$01
     STA $20cb
@@ -701,7 +703,7 @@ DrawStatus:
     JMP DrawNumCredits
 
 
-    .org $1a32
+    .org $1a00
 BlockCopy:
     LDA (DE), Y
     STA (HL), Y
@@ -739,6 +741,21 @@ ConvToScr:
 ; Convert from pixel number to screen coordinates (without shift)
 ; Shift HL right 3 bits (clearing the top 2 bits)
 ; and set the third bit from the left.; Convert pixel number in HL to screen coordinate
+    LDX #$03
+CTSloop:
+    LDA HL
+    ROR
+    STA HL
+    LDA HL+1
+    ROR
+    STA HL+1
+    DEX
+    BNE CTSloop
+    LDA HL
+    AND #$3f
+    ORA #$20
+    STA HL
+    RTS
 
 
 

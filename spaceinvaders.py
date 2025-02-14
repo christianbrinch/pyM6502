@@ -38,7 +38,7 @@ def cpu_step():
     while run:
         if not IRQ:
             if not cpu.flag_b:
-                cpu.exec(output=True, zeropage=True, mempage=0x20)
+                cpu.exec(output=True, zeropage=True, mempage=0x18)
                 input()
             else:
                 cpu.exec(output=False)

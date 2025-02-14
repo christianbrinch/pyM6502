@@ -417,7 +417,7 @@ DSSskip:
 CnvtPixNumber:
 ; Convert pixel number in HL to screen coordinate and shift amount.
 ; HL gets screen coordinate.
-    LDA HL+1
+    LDA HL
     AND #$07
     STA SHFTAMNT
     JMP ConvToScr
@@ -453,17 +453,17 @@ DrSploop:
     STA HL+1
     PLA
     STA HL
+    LDA HL+1
     CLC
     ADC #$20
-    STA HL
+    STA HL+1
     BCC DrSpskip
-    INC HL+1
+    INC HL
 DrSpskip:
     PLA
     STA BC
     DEC BC
     BNE DrSploop
-    ; THIS LOOPS HAS A MEMORY LEEK
     PLA
     STA HL+1
     PLA
@@ -569,9 +569,9 @@ SplashSprite:
     CMP BC
     BEQ SplSexit
     LDA $20cd
-    STA HL
-    LDA $20cc
     STA HL+1
+    LDA $20cc
+    STA HL
     LDA $20c2
     AND #$04
     BNE SSnoflip
@@ -580,18 +580,19 @@ SplashSprite:
     STA HL
 SSnoflip:
     LDA HL
-    STA $20c8
-    LDA HL+1
     STA $20c7
+    LDA HL+1
+    STA $20c8
     LDA #$c5
     STA HL
     LDA #$20
     STA HL+1
     JSR ReadDesc
+
     LDA DE
-    STA TMP
-    LDA DE+1
     STA TMP+1
+    LDA DE+1
+    STA TMP
     LDA HL
     STA DE
     LDA HL+1
@@ -716,10 +717,10 @@ BlockCopy:
 ReadDesc:
     LDY #$00
     LDA (HL), Y
-    STA DE+1
+    STA DE
     INC HL
     LDA (HL), Y
-    STA DE
+    STA DE+1
     INC HL
     LDA (HL), Y
     STA TMP
@@ -730,9 +731,9 @@ ReadDesc:
     LDA (HL), Y
     STA BC
     TXA
-    STA HL
-    LDA TMP
     STA HL+1
+    LDA TMP
+    STA HL
     RTS
 
 ConvToScr:
@@ -743,18 +744,18 @@ ConvToScr:
 ; and set the third bit from the left.; Convert pixel number in HL to screen coordinate
     LDX #$03
 CTSloop:
-    LDA HL
-    ROR
-    STA HL
     LDA HL+1
     ROR
     STA HL+1
+    LDA HL
+    ROR
+    STA HL
     DEX
     BNE CTSloop
-    LDA HL
+    LDA HL+1
     AND #$3f
     ORA #$20
-    STA HL
+    STA HL+1
     RTS
 
 

@@ -461,8 +461,10 @@ DrSploop:
     LDA HL+1            ; and   
     PHA                 ; push to stack
     LDA (DE), Y         ; Load sprite from DE
+;    LDY SHFTAMNT
 ;    STA SHFTY
 ;    LDA SHFTX
+    LDY #$00
     STA (HL), Y
     INC HL
     INC DE
@@ -763,13 +765,14 @@ ConvToScr:
     LDX #$03
 CTSloop:
     LDA HL+1
-    ROR
+    ROR 
     STA HL+1
     LDA HL
     ROR
     STA HL
     DEX
     BNE CTSloop
+
     LDA HL+1
     AND #$3f
     ORA #$20

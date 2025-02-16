@@ -36,9 +36,11 @@ def cpu_step():
     step=False
     st=0
     while run:
+        if cpu.program_counter == 0x1a47:
+            print(hex(cpu.memory[0x0004]), hex(cpu.memory[0x0005]))
         if not IRQ:
             if not cpu.flag_b:
-                cpu.exec(output=True, zeropage=True, mempage=0x20)
+                cpu.exec(output=True, zeropage=True, mempage=0x1a)
                 input()
             else:
                 cpu.exec(output=False)
@@ -90,7 +92,8 @@ def horizontal_scanning():
 
         # Emulated interrupts
         if not cpu.flag_i:
-            IRQ = 0x0c10
+            if n%1==0:
+                IRQ = 0x0c10
 
 
         pygame.display.flip()

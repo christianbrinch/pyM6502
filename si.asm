@@ -10,7 +10,12 @@ BC:
 TMP:
     .word $0000
 
+    .org $0060
 SHFTAMNT:
+    .byte $00
+SHFTX:
+    .byte $00
+SHFTY:
     .byte $00
 
     .org $00a0
@@ -187,6 +192,7 @@ IniSplashAni:
     LDA #$20
     STA HL+1
     LDX #$0c
+    LDY #$00
     JMP BlockCopy
 
 SplashSpriteTrampoline:
@@ -238,26 +244,35 @@ OBE8return:
     LDA #$1a
     STA DE+1
     JSR IniSplashAni
-    JSR Animate         ; Depend on interupts
-    brk
-    ;JSR OneSecDelay
+    JSR Animate         
+ 
+    LDA #$b0
+    STA DE
+    LDA #$1b
+    STA DE+1
+    JSR IniSplashAni    
+    JSR Animate
+    JSR OneSecDelay
+    
     LDA #$c9
     STA DE
     LDA #$1f
     STA DE+1
     JSR IniSplashAni
     JSR Animate         ; Depend on interupts
-    ;JSR OneSecDelay
+    JSR OneSecDelay
+    
     LDA #$b7
     STA HL
     LDA #$33
     STA HL+1
     LDX #$0a
     ;JSR ClearSmallSprite
-    ;JSR TwoSecDelay
+    JSR TwoSecDelay
 
 PlayDemo:
     brk
+    ror
 
 OBE8:
     LDA #$ab
@@ -361,18 +376,18 @@ RestoreAndOut:
 
     .org $0cd9
 AddDelta:
-    INC HL
-    LDA (HL), Y
-    STA BC
-    INC HL
-    TXA
-    ADC (HL), Y
-    STA (HL), Y
-    INC HL
-    LDA BC
-    ADC (HL), Y
-    STA (HL), Y
-    RTS
+    INC HL          ; delta-x is in reg X. Move to delta-y
+    LDA (HL), Y     ; load delta-y into A
+    STA BC          ; store it in B
+    INC HL          ; Go to x coordinate
+    TXA             ; transfer delta-x to A
+    ADC (HL), Y     ; add x coordinate to delta-x
+    STA (HL), Y     ; and store it in x coordinate address
+    INC HL          ; Go to y coordinate
+    LDA BC          ; load delta-y into A
+    ADC (HL), Y     ; add y coordinate
+    STA (HL), Y     ; and store it back to y coordinate address
+    RTS             ; out
 
 
 
@@ -422,53 +437,57 @@ CnvtPixNumber:
     STA SHFTAMNT
     JMP ConvToScr
 
+ShiftSprite:
+    LDY SHFTAMNT
+ShfSloop:
+    ASL SHFTX
+    ROR SHFTY
+    DEY
+    BNE ShfSloop    
+    RTS
 
 
     .org $15d3
 DrawSprite:
-    JSR CnvtPixNumber
-    LDY #$00
-    LDA HL
-    PHA
-    LDA HL+1
-    PHA
+    JSR CnvtPixNumber   ; I assume that this works.
+    LDY #$00            ; Clear Y 
+    LDA HL              ; Load
+    PHA                 ; HL
+    LDA HL+1            ; and
+    PHA                 ; push to stack
 DrSploop:
-    LDA BC
-    PHA
-    LDA HL
-    PHA
-    LDA HL+1
-    PHA
-    LDA (DE), Y
-    ; here goes shift stuff
-    ; More shift stuff
+    LDA HL              ; Load
+    PHA                 ; HL
+    LDA HL+1            ; and   
+    PHA                 ; push to stack
+    LDA (DE), Y         ; Load sprite from DE
+;    STA SHFTY
+;    LDA SHFTX
     STA (HL), Y
     INC HL
     INC DE
-    LDA #$00
-    ; put the zero into shift registers
-    ; more shift stuff
-    STA (HL), Y
+;    LDA #$00
+;    STA SHFTY
+;    LDA SHFTX
+;    STA (HL), Y
     PLA
     STA HL+1
     PLA
     STA HL
-    LDA HL+1
+    
+    LDA HL
     CLC
     ADC #$20
-    STA HL+1
+    STA HL
     BCC DrSpskip
-    INC HL
+    INC HL+1
 DrSpskip:
-    PLA
-    STA BC
     DEC BC
     BNE DrSploop
     PLA
     STA HL+1
     PLA
     STA HL
-
     RTS
 
 
@@ -553,46 +572,46 @@ RPSexit:
 SplashSprite:
 ; Move a sprite up and down in splash mode
     LDY #$00
-    LDA #$c2
-    STA HL
-    LDA #$20
-    STA HL+1
-    LDA (HL), Y
-    ADC #$01
-    STA (HL), Y
-    INC HL
-    LDA (HL), Y
-    TAX
-    JSR AddDelta
-    STA BC
-    LDA $20ca
-    CMP BC
-    BEQ SplSexit
-    LDA $20cd
-    STA HL+1
-    LDA $20cc
-    STA HL
-    LDA $20c2
-    AND #$04
-    BNE SSnoflip
-    LDA HL
-    ADC #$30
-    STA HL
-SSnoflip:
-    LDA HL
-    STA $20c7
-    LDA HL+1
-    STA $20c8
-    LDA #$c5
-    STA HL
-    LDA #$20
-    STA HL+1
-    JSR ReadDesc
+    LDA #$c2        ; Load $20c2... 
+    STA HL          ; ...  ($20c2 is the RAM location of 
+    LDA #$20        ; ...   the animation structure)
+    STA HL+1        ; ... into HL (low byte, hight byte)
+    LDA (HL), Y     ; Increment...             
+    ADC #$01        ; ... by 1
+    STA (HL), Y     ; the value pointed to by HL
+    INC HL          ; Increment the menory pointer 
+    LDA (HL), Y     ; Load delta-x into A...
+    TAX             ; and put it in X (it is zero, no movement in x-direction)
+    JSR AddDelta    ; Calculate new coordinate (this has been tested and works)
+    STA BC          ; A holds the new y coordinate. Put it in B
+    LDA $20ca       ; load target y
+    CMP BC          ; are we there yet?
+    BEQ SplSexit    ; if yes... flag and out
+    LDA $20cc       ; Load the address 0x1c20
+    STA HL          ; into
+    LDA $20cd       ; HL
+    STA HL+1        ; so that HL is 201c (a word read from HL gives the right address)
 
-    LDA DE
-    STA TMP+1
-    LDA DE+1
+    LDA $20c2       ; this code needs testing
+    AND #$04        ;
+    BNE SSnoflip    ;
+    LDA HL          ;
+    ADC #$30        ;
+    STA HL          ; ...to here
+SSnoflip:
+    LDA HL          ; Load HL low byte
+    STA $20c7       ; Store in animate struct
+    LDA HL+1        ; Load HL high byte
+    STA $20c8       ; Store in animate struct
+    LDA #$c5        ; Load a word from animate struct
+    STA HL          ; x and y coordinate address
+    LDA #$20        ; into
+    STA HL+1        ; HL (low byte, high byte: c520)
+    JSR ReadDesc    ; Read the struct for plotting
+    LDA DE          ; Exchange DE and HL
     STA TMP
+    LDA DE+1
+    STA TMP+1
     LDA HL
     STA DE
     LDA HL+1
@@ -600,9 +619,8 @@ SSnoflip:
     LDA TMP
     STA HL
     LDA TMP+1
-    STA HL+1
+    STA HL+1        ; Exchange done
     JMP DrawSprite
-
 
 SplSexit:
     LDA #$01
@@ -715,25 +733,25 @@ BlockCopy:
     RTS
 
 ReadDesc:
-    LDY #$00
-    LDA (HL), Y
-    STA DE
-    INC HL
-    LDA (HL), Y
-    STA DE+1
-    INC HL
-    LDA (HL), Y
-    STA TMP
-    INC HL
-    LDA (HL), Y
-    TAX
-    INC HL
-    LDA (HL), Y
-    STA BC
-    TXA
-    STA HL+1
-    LDA TMP
-    STA HL
+    LDY #$00        ; Reset Y
+    LDA (HL), Y     ; Load the x coordinate (0x20c5)
+    STA DE          ; Store x coordinate into high byte of DE
+    INC HL          ; Next address (0x20c6)
+    LDA (HL), Y     ; Load the y coordinate
+    STA DE+1        ; Store y coordinate into low byte of DE
+    INC HL          ; go to low byte of image         
+    LDA (HL), Y     ; load low byte of image
+    STA TMP         ; store in tmp (tmp holds low byte)
+    INC HL          ; go to high byte of image
+    LDA (HL), Y     ; load the value
+    TAX             ; Move high byte of image into X
+    INC HL          ; Next byte
+    LDA (HL), Y     ; Load a with size of image
+    STA BC          ; into B
+    TXA             ; High image byte back to A
+    STA HL+1        ; Store into high byte of HL
+    LDA TMP         ; Load low byte of image address
+    STA HL          ; and put it into low byte of HL
     RTS
 
 ConvToScr:
@@ -961,10 +979,18 @@ Characters:
     .byte $00, $22, $14, $7F, $14, $22, $00, $00
     .byte $00, $03, $04, $78, $04, $03, $00, $00
 
+    .org $1f80
+; small alien bringing y - animation 1
+    .byte $60, $10, $0f, $10, $60, $30, $18, $1a, $3d, $68, $fc, $fc, $68, $3d, $1a, $00
 
     .org $1fa9
 MessageCredit:
     .byte $02, $11, $04, $03, $08, $13, $26       ; "CREDIT " (with space on the end)
+
+    .org $1fb0
+; small alien bringing y - animation 2
+    .byte $00, $60, $10, $0f, $10, $60, $38, $19, $3a, $6d, $fa, $fa, $6d, $3a, $19, $00
+
 
     .org $1fc0
     .byte $00, $20, $40, $4d, $50, $20, $00, $00  ; "?"

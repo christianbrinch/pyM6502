@@ -101,6 +101,33 @@ Bump2NumberChar:
     STA A
     JMP DrawChar
 
+    .org $09d6
+ClearPlayField:
+    LDY #$00
+    LDA #$02
+    STA HL
+    LDA #$24
+    STA HL+1
+CPFloop:
+    LDA #$00
+    STA (HL), Y
+    INC HL
+    CLC
+    LDA HL
+    AND #$1f
+    CMP #$1c
+    BCS CPFskip
+    LDA HL
+    ADC #$06
+    STA HL
+CPFskip:    
+    LDA HL+1
+    CLC
+    CMP #$40
+    BCS CPFloop 
+    RTS
+
+
 Animate:
 ; Start the ISR moving the sprite. Return when done.
     LDA #$02
@@ -237,7 +264,17 @@ OBE8return:
     AND $20ec   ; Set flags based on type
     CMP #$00
     BNE PlayDemo
+    JMP AniRepY
 
+OBE8:
+    LDA #$ab
+    STA DE
+    LDA #$1d
+    STA DE+1
+    JSR PrintMessageDel
+    JMP OBE8return
+
+AniRepY:
 ; Animate alien replacing upside down Y with normal Y
     LDA #$95
     STA DE
@@ -259,28 +296,38 @@ OBE8return:
     LDA #$1f
     STA DE+1
     JSR IniSplashAni
-    JSR Animate         ; Depend on interupts
+    JSR Animate         
     JSR OneSecDelay
     
-    LDA #$b7
-    STA HL
+    LDA #$d7                ; This should be 0xb7 according to SI code,
+    STA HL                  ; but that does not quite match
     LDA #$33
     STA HL+1
     LDX #$0a
-    ;JSR ClearSmallSprite
+    LDY #$00
+    JSR ClearSmallSprite
     JSR TwoSecDelay
 
 PlayDemo:
-    brk
-    ror
+    JSR ClearPlayField
+    LDA $21ff
+    AND $21ff
+    CMP #$00
+    BNE SkipShipReset    
+    ;JSR GetShipsPerCred
+    STA $21ff
+    ;JSR RemoveShip
+SkipShipReset:
+    ;JSR CopyRAMMirror
+    ;JSR InitAliens
+    ;JSR DrawShieldPl1
+    ;JSR RestoreShields1
+    LDA #$01
+    STA $20c1
+    ;JSR DrawBottomLine
 
-OBE8:
-    LDA #$ab
-    STA DE
-    LDA #$1d
-    STA DE+1
-    JSR PrintMessageDel
-    JMP OBE8return
+    brk
+    sei
 
 
 
@@ -437,6 +484,23 @@ CnvtPixNumber:
     STA SHFTAMNT
     JMP ConvToScr
 
+ClearSmallSprite:
+; Clear a one byte sprite at HL. B=number of rows.
+    LDA #$00
+    STA (HL), Y
+    LDA #$20
+    CLC
+    ADC HL
+    STA HL
+    BCC CSSskip
+    INC HL+1
+CSSskip:
+    DEX
+    CPX #$00
+    BNE ClearSmallSprite
+    RTS
+    
+
 ShiftSprite:
     LDY SHFTAMNT
 ShfSloop:
@@ -472,10 +536,11 @@ teskip:                 ; Until here.
 
     LDA (DE),Y    
     STA (HL), Y
-    INC HL
-    INC DE
-;    LDA #$00
-;    STA SHFTY
+
+    INC HL              ; This is the part of the
+    INC DE              ; original shift code
+;    LDA #$00           ; which needs to be fixed 
+;    STA SHFTY          ; once we do shots.
 ;    LDA SHFTX
 ;    STA (HL), Y
     PLA

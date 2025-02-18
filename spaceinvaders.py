@@ -36,6 +36,8 @@ def cpu_step():
     step=False
     st=0
     while run:
+        if 8>cpu.memory[0x0060]>0:
+            cpu.memory[0x0060] = cpu.memory[0x0060]*0x20
         if not IRQ:
             if not cpu.flag_b:
                 cpu.exec(output=True, zeropage=True, mempage=0x1a)

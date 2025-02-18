@@ -432,7 +432,7 @@ DSSskip:
 CnvtPixNumber:
 ; Convert pixel number in HL to screen coordinate and shift amount.
 ; HL gets screen coordinate.
-    LDA HL
+    LDA HL+1
     AND #$07
     STA SHFTAMNT
     JMP ConvToScr
@@ -461,10 +461,16 @@ DrSploop:
     LDA HL+1            ; and   
     PHA                 ; push to stack
     LDA (DE), Y         ; Load sprite from DE
-;    LDY SHFTAMNT
-;    STA SHFTY
-;    LDA SHFTX
-    LDY #$00
+
+    LDA HL              ; This part is not
+    CLC                 ; in the original
+    ADC SHFTAMNT        ; SI code, but
+    STA HL              ; it mimicks
+    BCC teskip          ; hardware shift of sprites
+    INC HL+1            ; to achieve smooth scrolling
+teskip:                 ; Until here.
+
+    LDA (DE),Y    
     STA (HL), Y
     INC HL
     INC DE

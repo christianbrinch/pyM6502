@@ -252,10 +252,11 @@ class Set:
         value = eval("self.get_"+mode+"(obj)")
         obj.flag_c = obj.reg_a >= value
         obj.flag_z = bool(not (obj.reg_a - value))
-        if obj.reg_a - value < 0:
-            obj.flag_n = True
-        else:
-            obj.flag_n = False
+        obj.flag_n = bool((obj.reg_a - value) & 0x80)
+        #if obj.reg_a - value < 0:
+        #    obj.flag_n = True
+        #else:
+        #    obj.flag_n = False
 
     def cpx(self, obj, mode):
         ''' Compare Register X '''

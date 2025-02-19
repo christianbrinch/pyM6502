@@ -103,28 +103,39 @@ Bump2NumberChar:
 
     .org $09d6
 ClearPlayField:
-    LDY #$00
-    LDA #$02
-    STA HL
-    LDA #$24
-    STA HL+1
+    SEI             ; FIX THIS: the interupt fucks up the carry flag
+    LDY #$00        ; Reset y register
+    LDA #$02        ; Load
+    STA HL          ; 0x2402 (top of video mem + offset)
+    LDA #$24        ; into
+    STA HL+1        ; HL
 CPFloop:
-    LDA #$00
-    STA (HL), Y
-    INC HL
-    CLC
-    LDA HL
-    AND #$1f
-    CMP #$1c
-    BCS CPFskip
-    LDA HL
-    ADC #$06
-    STA HL
+    LDA #$00        ; Load a 0...
+    STA (HL), Y     ; ...and store it in video mem
+
+    CLC             ; Clear carry
+    LDA HL          ; Load HL low byte
+    ADC #$01        ; Move to next byte
+    STA HL          ; and store it again
+    BCC CPFskip1    ; If we cross the boundary...
+    INC HL+1        ; ...increment high byte
+CPFskip1:
+    AND #$1f        ; Get x byte number...
+    CMP #$1c        ; ...and compare to 28
+    BNE CPFskip     ; If reached, move to next column
+                    ; and otherwise check high byte
+    LDA HL          ; Load low byte again
+    CLC             ; Clear carry
+    ADC #$06        ; Add 6 (4 byte in the top and 2 in the bottom)
+    STA HL          ; Store it again
+    BCC CPFskip     ; If we cross the byte boundary...  
+    INC HL+1        ; ...increment high byte
 CPFskip:    
-    LDA HL+1
     CLC
-    CMP #$40
-    BCS CPFloop 
+    LDA HL+1        ; Load high byte
+    CMP #$40        ; Compare to 64
+    BCC CPFloop     ; If reached, then out
+    CLI             ; FIX THIS
     RTS
 
 

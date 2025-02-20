@@ -26,6 +26,12 @@ INP1:
 INP2:
     .byte $00
 
+    .org $08d1
+GetShipsPerCred:
+    LDA INP2
+    AND #$03
+    ADC #$03
+    RTS
 
     .org $08f3
 PrintMessage:
@@ -238,7 +244,7 @@ SplashSpriteTrampoline:
 
 
 SplashScreenloop:
-    LDA #$00        ; for
+    LDA #$01        ; for
     STA $20ec       ; debugging
     ;LDA #$02        ; purposes
     ;STA $20c1       ; only
@@ -325,17 +331,18 @@ PlayDemo:
     AND $21ff
     CMP #$00
     BNE SkipShipReset    
-    ;JSR GetShipsPerCred
+    JSR GetShipsPerCred
     STA $21ff
     ;JSR RemoveShip
 SkipShipReset:
-    ;JSR CopyRAMMirror
+    JSR CopyRAMMirror
     ;JSR InitAliens
-    ;JSR DrawShieldPl1
-    ;JSR RestoreShields1
+    JSR DrawShieldPl1
+    JSR RestoreShields1
     LDA #$01
     STA $20c1
-    ;JSR DrawBottomLine
+    LDY #$00
+    JSR DrawBottomLine
 
     brk
     sei
@@ -431,8 +438,15 @@ RestoreAndOut:
 ; midscreen interupt continues here
     JMP RestoreAndOut
 
+DrawBottomLine:
+    LDA #$02
+    STA HL
+    LDA #$24
+    STA HL+1
+    LDA #$01
+    LDX #$e0
+    JMP CSSloop
 
-    .org $0cd9
 AddDelta:
     INC HL          ; delta-x is in reg X. Move to delta-y
     LDA (HL), Y     ; load delta-y into A
@@ -465,8 +479,117 @@ CopyRAMMirror:
     STA HL+1
     JMP BlockCopy
 
+DrawShieldPl1:
+; Draw the shields for player 1 (draws it in the buffer in the player's data area).
+    LDA #$42
+    STA HL
+    LDA #$21
+    STA HL+1
+    JMP CommonDrawPoint
+DrawShieldPl2:
+; Draw the shields for player 2
+    LDA #$42
+    STA HL
+    LDA #$22
+    STA HL+1
+CommonDrawPoint:
+    LDX #$04            ; Four shields to memory
+    LDA #$20            ; Get shield sprite
+    STA DE              ; address
+    LDA #$1d            ; to 
+    STA DE+1            ; DE
+CDPloop:
+    LDA DE
+    PHA
+    LDA DE+1
+    PHA
+    LDY #$00
+    TXA
+    PHA
+    LDX #$2c        
+    JSR BlockCopy
+    PLA
+    TAX
+    PLA
+    STA DE+1
+    PLA 
+    STA DE
+    DEX
+    BNE CDPloop    
+    RTS
 
+RestoreShields1:
+    LDA #$42
+    STA DE
+    LDA #$21
+    STA DE+1
+    LDA #$00
 
+CopyShields:
+    STA $2081
+    LDA #$02
+    STA BC
+    LDA #$16
+    STA BC+1
+    LDA #$06
+    STA HL
+    LDA #$28
+    STA HL+1
+    ;LDA #$04
+    LDX #$04
+CShloop:
+    ;PHA                 ; Push shield count
+    LDA BC              ; Push BC...
+    PHA                 ;
+    LDA BC+1            ;   
+    PHA                 ; ...done
+    LDA $2081
+    AND $2081
+    CMP #$00
+    BNE RememberShieldEntry
+    JSR RestoreShields
+CSreturn:
+    PLA                 ; Pull BC...
+    STA BC+1            ;
+    PLA                 ;
+    STA BC              ; ...done
+    ;PLA                 ; Pull Shield count
+    ;SBC #$01            ; Decrease shield count
+    ;CMP #$00            ; Is it zero?
+    DEX
+    CPX #$00
+    BEQ ShieldsOut      ; No? Continue, otherwise out
+    
+    ;PHA                 ; Temporary push A
+    ;LDA DE              ; Push DE...   
+    ;PHA                 ;
+    ;LDA DE+1            ; 
+    ;PHA                 ; ...done
+    
+    CLC
+    LDA #$e0
+    ADC HL
+    STA HL
+    BCC CShskip
+    INC HL+1
+CShskip:
+    LDA #$02
+    ADC HL+1
+    STA HL+1
+    ;PLA                 ; Pull DE... 
+    ;STA DE+1            ;
+    ;PLA                 ;
+    ;STA DE              ; ...done
+    ;PLA                 ; Recover A
+    JMP CShloop
+    
+
+RememberShieldEntry:
+    ;JSR RememberShield
+    JMP CSreturn
+
+ShieldsOut:
+    RTS
 
     .org $1439
 DrawSimpSprite:
@@ -498,6 +621,8 @@ CnvtPixNumber:
 ClearSmallSprite:
 ; Clear a one byte sprite at HL. B=number of rows.
     LDA #$00
+CSSloop:
+    PHA
     STA (HL), Y
     LDA #$20
     CLC
@@ -506,9 +631,10 @@ ClearSmallSprite:
     BCC CSSskip
     INC HL+1
 CSSskip:
+    PLA
     DEX
     CPX #$00
-    BNE ClearSmallSprite
+    BNE CSSloop
     RTS
     
 
@@ -578,7 +704,7 @@ DrSpskip:
 
 
 
-    .org $1815
+    .org $1810
 DrawAdvTable:
 ; Draw "SCORE ADVANCE TABLE"
     LDA #$10
@@ -806,7 +932,7 @@ DrawStatus:
     JMP DrawNumCredits
 
 
-    .org $1a00
+    .org $19ef
 BlockCopy:
     LDA (DE), Y
     STA (HL), Y
@@ -882,9 +1008,46 @@ CSskip:
     BNE CSstart   ; jump to CleanScreen line 2
     RTS
 
-
-
-
+RestoreShields:
+    LDY #$00
+    LDA BC
+    PHA
+    LDA BC+1
+    PHA
+    LDA HL
+    PHA
+    LDA HL+1
+    PHA
+RShloop:
+    LDA (DE), Y
+    ORA (HL), Y
+    STA (HL), Y
+    INC HL
+    INC DE
+    DEC BC
+    LDA BC
+    CMP #$00
+    BNE RShloop
+    PLA 
+    STA HL+1
+    PLA 
+    STA HL
+    LDA #$20
+    CLC
+    ADC HL
+    STA HL
+    BCC RSHskip
+    INC HL+1
+RSHskip: 
+    PLA 
+    STA BC+1
+    PLA 
+    STA BC
+    DEC BC+1
+    LDA BC+1
+    CMP #$00
+    BNE RestoreShields
+    RTS
 
 
 
@@ -974,6 +1137,15 @@ AlienImages:
     .byte $00, $00, $38, $7A, $7F, $6D, $EC, $FA, $FA, $EC, $6D, $7F, $7A, $38, $00, $00
     .byte $00, $00, $00, $0E, $18, $BE, $6D, $3D, $3C, $3D, $6D, $BE, $18, $0E, $00, $00
     .byte $00, $00, $00, $00, $1A, $3D, $68, $FC, $FC, $68, $3D, $1A, $00, $00, $00, $00
+
+    .org $1d20
+; Shield sprite
+    .byte $FF, $0F, $FF, $1F, $FF, $3F, $FF, $7F, $FF, $FF, $FC
+    .byte $FF, $F8, $FF, $F0, $FF, $F0, $FF, $F0, $FF, $F0, $FF                                    
+    .byte $F0, $FF, $F0, $FF, $F0, $FF, $F8, $FF, $FC, $FF, $FF 
+    .byte $FF, $FF, $FF, $FF, $7F, $FF, $3F, $FF, $1F, $FF, $0F
+
+
 
     .org $1d64
 SpriteSaucer:

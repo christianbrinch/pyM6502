@@ -52,15 +52,12 @@ def cpu_step():
             cpu.stack_pointer -= 0x01
             cpu.write_byte(cpu.stack_pointer+0x100, cpu.program_counter%256)
             cpu.stack_pointer -= 0x01
-            '''
+
             # Push status flags
-            status = '0b'+str(int(cpu.flag_n))+str(int(cpu.flag_v))+'10'+str(int(cpu.flag_d))+str(int(cpu.flag_i))+str(int(cpu.flag_z))+str(int(cpu.flag_c))
-            if int(status,0) > 255:
-                print("Status flag integer too large")
-                input()
-            cpu.write_byte(cpu.stack_pointer+0x100, int(status,0))
+            status = (cpu.flag_n<<0)|(cpu.flag_v<<1)|(1<<2)|(cpu.flag_b<<3)|(cpu.flag_d<<4)|(cpu.flag_i<<5)|(cpu.flag_z<<6)|(cpu.flag_c<<7)
+            cpu.write_byte(cpu.stack_pointer+0x100, status)
             cpu.stack_pointer -= 0x01
-            '''
+
             # Read interrupt vector at $fffe-$ffff
             cpu.program_counter = cpu.read_word(0xfffe)
             IRQ = False

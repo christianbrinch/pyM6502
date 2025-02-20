@@ -368,12 +368,12 @@ class Set:
 
     def rti(self, obj, mode):
         ''' Return from interrupt: 6 cycles '''
-        obj.stack_pointer += 0x00
-        status = bin(obj.read_byte(obj.stack_pointer+0x100))[2:].zfill(8)
+        obj.stack_pointer += 0x01
+        status = [(obj.read_byte(obj.stack_pointer+0x100)>>i)&1 for i in range(8)]
         obj.flag_n = bool(status[0])
         obj.flag_v = bool(status[1])
         obj.flag_d = bool(status[4])
-        obj.flag_i = False #bool(status[5])
+        obj.flag_i = False
         obj.flag_z = bool(status[6])
         obj.flag_c = bool(status[7])
         obj.stack_pointer += 0x01

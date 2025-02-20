@@ -56,6 +56,16 @@ PrintMessage:
     BNE PrintMessage
     RTS
 
+GetNumberOfShips:
+    LDY #$00
+    JSR GetPlayerDataPtr
+    LDA #$ff
+    STA HL
+    LDA (HL), Y
+    STA A
+    RTS
+
+
 DrawChar:
 ; Determine the character's address from the character pointer
     LDY #$03
@@ -80,14 +90,19 @@ DCskip:
     LDX #$08
     JMP DrawSimpSprite
 
-    .org $09ad
+    .org $09aa
 Print4Digits:
-    LDA DE
+    LDX DE
     JSR DrawHexByte
-    LDA DE+1
+    LDX DE+1
 
 DrawHexByte:
 ; Display 2 digits in A to the screen at HL
+    LDA DE
+    PHA
+    LDA DE+1
+    PHA
+    TXA
     PHA
     ROR
     ROR
@@ -98,18 +113,18 @@ DrawHexByte:
     PLA
     AND #$0f
     JSR Bump2NumberChar
+    PLA
+    STA DE+1
+    PLA
+    STA DE
     RTS
 
 Bump2NumberChar:
-    LDA #$00
-    STA A+1
     ADC #$1a
-    STA A
     JMP DrawChar
 
     .org $09d6
 ClearPlayField:
-    SEI             ; FIX THIS: the interupt fucks up the carry flag
     LDY #$00        ; Reset y register
     LDA #$02        ; Load
     STA HL          ; 0x2402 (top of video mem + offset)
@@ -134,14 +149,13 @@ CPFskip1:
     CLC             ; Clear carry
     ADC #$06        ; Add 6 (4 byte in the top and 2 in the bottom)
     STA HL          ; Store it again
-    BCC CPFskip     ; If we cross the byte boundary...  
+    BCC CPFskip     ; If we cross the byte boundary...
     INC HL+1        ; ...increment high byte
-CPFskip:    
+CPFskip:
     CLC
     LDA HL+1        ; Load high byte
     CMP #$40        ; Compare to 64
     BCC CPFloop     ; If reached, then out
-    CLI             ; FIX THIS
     RTS
 
 
@@ -298,24 +312,24 @@ AniRepY:
     LDA #$1a
     STA DE+1
     JSR IniSplashAni
-    JSR Animate         
- 
+    JSR Animate
+
     LDA #$b0
     STA DE
     LDA #$1b
     STA DE+1
-    JSR IniSplashAni    
+    JSR IniSplashAni
     JSR Animate
     JSR OneSecDelay
-    
+
     LDA #$c9
     STA DE
     LDA #$1f
     STA DE+1
     JSR IniSplashAni
-    JSR Animate         
+    JSR Animate
     JSR OneSecDelay
-    
+
     LDA #$d7                ; This should be 0xb7 according to SI code,
     STA HL                  ; but that does not quite match
     LDA #$33
@@ -330,13 +344,13 @@ PlayDemo:
     LDA $21ff
     AND $21ff
     CMP #$00
-    BNE SkipShipReset    
+    BNE SkipShipReset
     JSR GetShipsPerCred
     STA $21ff
-    ;JSR RemoveShip
+    JSR RemoveShip
 SkipShipReset:
     JSR CopyRAMMirror
-    ;JSR InitAliens
+    JSR InitAliens
     JSR DrawShieldPl1
     JSR RestoreShields1
     LDA #$01
@@ -438,6 +452,23 @@ RestoreAndOut:
 ; midscreen interupt continues here
     JMP RestoreAndOut
 
+ InitAliens:
+    LDY #$00
+    LDA #$00
+    STA HL
+    LDA #$21
+    STA HL+1
+    LDX #$37
+InAlloop:
+    LDA #$01
+    STA (HL), Y
+    INC HL
+    DEX
+    CPX #$00
+    BNE InAlloop
+    RTS
+
+
 DrawBottomLine:
     LDA #$02
     STA HL
@@ -496,7 +527,7 @@ CommonDrawPoint:
     LDX #$04            ; Four shields to memory
     LDA #$20            ; Get shield sprite
     STA DE              ; address
-    LDA #$1d            ; to 
+    LDA #$1d            ; to
     STA DE+1            ; DE
 CDPloop:
     LDA DE
@@ -506,17 +537,17 @@ CDPloop:
     LDY #$00
     TXA
     PHA
-    LDX #$2c        
+    LDX #$2c
     JSR BlockCopy
     PLA
     TAX
     PLA
     STA DE+1
-    PLA 
+    PLA
     STA DE
     DEX
     CPX #$00
-    BNE CDPloop    
+    BNE CDPloop
     RTS
 
 RestoreShields1:
@@ -539,10 +570,9 @@ CopyShields:
     ;LDA #$04
     LDX #$04
 CShloop:
-    ;PHA                 ; Push shield count
     LDA BC              ; Push BC...
     PHA                 ;
-    LDA BC+1            ;   
+    LDA BC+1            ;
     PHA                 ; ...done
     LDA $2081
     AND $2081
@@ -554,19 +584,9 @@ CSreturn:
     STA BC+1            ;
     PLA                 ;
     STA BC              ; ...done
-    ;PLA                 ; Pull Shield count
-    ;SBC #$01            ; Decrease shield count
-    ;CMP #$00            ; Is it zero?
     DEX
     CPX #$00
     BEQ ShieldsOut      ; No? Continue, otherwise out
-    
-    ;PHA                 ; Temporary push A
-    ;LDA DE              ; Push DE...   
-    ;PHA                 ;
-    ;LDA DE+1            ; 
-    ;PHA                 ; ...done
-    
     CLC
     LDA #$e0
     ADC HL
@@ -577,13 +597,8 @@ CShskip:
     LDA #$02
     ADC HL+1
     STA HL+1
-    ;PLA                 ; Pull DE... 
-    ;STA DE+1            ;
-    ;PLA                 ;
-    ;STA DE              ; ...done
-    ;PLA                 ; Recover A
     JMP CShloop
-    
+
 
 RememberShieldEntry:
     ;JSR RememberShield
@@ -637,7 +652,7 @@ CSSskip:
     CPX #$00
     BNE CSSloop
     RTS
-    
+
 
 ShiftSprite:
     LDY SHFTAMNT
@@ -645,14 +660,14 @@ ShfSloop:
     ASL SHFTX
     ROR SHFTY
     DEY
-    BNE ShfSloop    
+    BNE ShfSloop
     RTS
 
 
     .org $15d3
 DrawSprite:
     JSR CnvtPixNumber   ; I assume that this works.
-    LDY #$00            ; Clear Y 
+    LDY #$00            ; Clear Y
     LDA HL              ; Load
     PHA                 ; HL
     LDA HL+1            ; and
@@ -660,7 +675,7 @@ DrawSprite:
 DrSploop:
     LDA HL              ; Load
     PHA                 ; HL
-    LDA HL+1            ; and   
+    LDA HL+1            ; and
     PHA                 ; push to stack
     LDA (DE), Y         ; Load sprite from DE
 
@@ -672,12 +687,12 @@ DrSploop:
     INC HL+1            ; to achieve smooth scrolling
 teskip:                 ; Until here.
 
-    LDA (DE),Y    
+    LDA (DE),Y
     STA (HL), Y
 
     INC HL              ; This is the part of the
     INC DE              ; original shift code
-;    LDA #$00           ; which needs to be fixed 
+;    LDA #$00           ; which needs to be fixed
 ;    STA SHFTY          ; once we do shots.
 ;    LDA SHFTX
 ;    STA (HL), Y
@@ -685,7 +700,7 @@ teskip:                 ; Until here.
     STA HL+1
     PLA
     STA HL
-    
+
     LDA HL
     CLC
     ADC #$20
@@ -701,7 +716,12 @@ DrSpskip:
     STA HL
     RTS
 
-
+GetPlayerDataPtr:
+    LDA #$00
+    STA HL
+    LDA $2067
+    STA HL+1
+    RTS
 
 
 
@@ -783,14 +803,14 @@ RPSexit:
 SplashSprite:
 ; Move a sprite up and down in splash mode
     LDY #$00
-    LDA #$c2        ; Load $20c2... 
-    STA HL          ; ...  ($20c2 is the RAM location of 
+    LDA #$c2        ; Load $20c2...
+    STA HL          ; ...  ($20c2 is the RAM location of
     LDA #$20        ; ...   the animation structure)
     STA HL+1        ; ... into HL (low byte, hight byte)
-    LDA (HL), Y     ; Increment...             
+    LDA (HL), Y     ; Increment...
     ADC #$01        ; ... by 1
     STA (HL), Y     ; the value pointed to by HL
-    INC HL          ; Increment the menory pointer 
+    INC HL          ; Increment the menory pointer
     LDA (HL), Y     ; Load delta-x into A...
     TAX             ; and put it in X (it is zero, no movement in x-direction)
     JSR AddDelta    ; Calculate new coordinate (this has been tested and works)
@@ -851,7 +871,7 @@ init:
 
 
 
-    .org $191a
+    .org $1900
 DrawScoreHead:
     LDX #$1c
     LDA #$1e
@@ -932,17 +952,45 @@ DrawStatus:
     JSR PrintCreditLabel
     JMP DrawNumCredits
 
+DrawNumShips:
+; Show ships remaining in hold for the player
+    LDA #$01
+    STA HL
+    LDA #$27
+    STA HL+1
+    LDA A
+    CMP #$00
+    BEQ ClearRemainderOfLine
+DrawLineOfShips:
+    LDA #$60
+    STA DE
+    LDA #$1c
+    STA DE+1
+    LDX #$10
+    JSR DrawSimpSprite
+    DEC A
+    LDA A
+    CMP #$00
+    BNE DrawLineOfShips
+ClearRemainderOfLine:
+    LDX #$10
+    JSR ClearSmallSprite
+    LDA HL+1
+    CMP #$35
+    BNE ClearRemainderOfLine
+    RTS
 
-    .org $19da
+
+
 BlockCopy:
     LDA (DE), Y
     STA (HL), Y
-    INY   
+    INY
     DEX
     CPX #$00
     BNE BlockCopy
     CLC
-    TYA 
+    TYA
     ADC HL
     STA HL
     BCC BCskip1
@@ -957,7 +1005,7 @@ ReadDesc:
     INC HL          ; Next address (0x20c6)
     LDA (HL), Y     ; Load the y coordinate
     STA DE+1        ; Store y coordinate into low byte of DE
-    INC HL          ; go to low byte of image         
+    INC HL          ; go to low byte of image
     LDA (HL), Y     ; load low byte of image
     STA TMP         ; store in tmp (tmp holds low byte)
     INC HL          ; go to high byte of image
@@ -981,7 +1029,7 @@ ConvToScr:
     LDX #$03
 CTSloop:
     LDA HL+1
-    ROR 
+    ROR
     STA HL+1
     LDA HL
     ROR
@@ -1036,20 +1084,21 @@ RShloop:
     LDA BC
     CMP #$00
     BNE RShloop
-    PLA 
+    PLA
     STA HL+1
-    PLA 
+    PLA
     STA HL
     LDA #$20
     CLC
     ADC HL
     STA HL
     BCC RSHskip
+
     INC HL+1
-RSHskip: 
-    PLA 
+RSHskip:
+    PLA
     STA BC+1
-    PLA 
+    PLA
     STA BC
     DEC BC+1
     LDA BC+1
@@ -1057,11 +1106,28 @@ RSHskip:
     BNE RestoreShields
     RTS
 
-
-
-
-
-
+RemoveShip:
+; Remove a ship from the players stash and update the
+; hold indicators on the screen.
+    LDY #$00
+    JSR GetNumberOfShips
+    AND A
+    CMP #$00
+    BEQ RemSout
+    PHA
+    SBC #$01
+    STA A
+    STA (HL), Y
+    JSR DrawNumShips
+    LDA #$01
+    STA HL
+    LDA #$25
+    STA HL+1
+    PLA
+    AND #$0f
+    JMP Bump2NumberChar
+RemSout:
+    RTS
 
 
 
@@ -1146,11 +1212,17 @@ AlienImages:
     .byte $00, $00, $00, $0E, $18, $BE, $6D, $3D, $3C, $3D, $6D, $BE, $18, $0E, $00, $00
     .byte $00, $00, $00, $00, $1A, $3D, $68, $FC, $FC, $68, $3D, $1A, $00, $00, $00, $00
 
+PlayerSprite:
+    .byte $00, $00, $0F, $1F, $1F, $1F, $1F, $7F, $FF, $7F, $1F, $1F, $1F, $1F, $0F, $00
+PlrBlowupSprites:
+    .byte $00, $04, $01, $13, $03, $07, $B3, $0F, $2F, $03, $2F, $49, $04, $03, $00, $01
+    .byte $40, $08, $05, $A3, $0A, $03, $5B, $0F, $27, $27, $0B, $4B, $40, $84, $11, $48
+
     .org $1d20
-; Shield sprite
+ShieldImage:
     .byte $FF, $0F, $FF, $1F, $FF, $3F, $FF, $7F, $FF, $FF, $FC
-    .byte $FF, $F8, $FF, $F0, $FF, $F0, $FF, $F0, $FF, $F0, $FF                                    
-    .byte $F0, $FF, $F0, $FF, $F0, $FF, $F8, $FF, $FC, $FF, $FF 
+    .byte $FF, $F8, $FF, $F0, $FF, $F0, $FF, $F0, $FF, $F0, $FF
+    .byte $F0, $FF, $F0, $FF, $F0, $FF, $F8, $FF, $FC, $FF, $FF
     .byte $FF, $FF, $FF, $FF, $7F, $FF, $3F, $FF, $1F, $FF, $0F
 
 

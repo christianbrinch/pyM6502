@@ -515,6 +515,7 @@ CDPloop:
     PLA 
     STA DE
     DEX
+    CPX #$00
     BNE CDPloop    
     RTS
 
@@ -932,14 +933,21 @@ DrawStatus:
     JMP DrawNumCredits
 
 
-    .org $19ef
+    .org $19da
 BlockCopy:
     LDA (DE), Y
     STA (HL), Y
-    INY
+    INY   
     DEX
     CPX #$00
     BNE BlockCopy
+    CLC
+    TYA 
+    ADC HL
+    STA HL
+    BCC BCskip1
+    INC HL+1
+BCskip1:
     RTS
 
 ReadDesc:

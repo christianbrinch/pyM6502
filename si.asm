@@ -214,7 +214,7 @@ TwoSecDelay:
 
 SplashDemo:
     ; POP HL?!?     ;does what?
-    JMP MGPTLskipsound 
+    JMP MGPTLskipsound
 
 ISRSplTasks:
     LDA $20c1
@@ -362,8 +362,10 @@ SkipShipReset:
     LDY #$00
     JSR DrawBottomLine
 
-    brk
-    sei
+infiniloop:
+    BRK
+    JMP infiniloop
+
 
 
 
@@ -482,6 +484,8 @@ InAlloop:
 
     .org $0d00
 ; z80's $0100 has been moved here
+AExplodeTimeTrampoline:
+    JMP AExplodeTime
 
 DrawAlien:
     LDY #$00
@@ -491,7 +495,94 @@ DrawAlien:
     STA HL+1
     LDA (HL), Y
     AND (HL), Y
-    BNE AExplodeTime
+    BNE AExplodeTimeTrampoline
+
+    LDA HL
+    PHA
+    LDA HL+1
+    PHA
+    LDA $2006
+    STA HL
+    LDA $2067
+    STA HL+1
+    LDA (HL), Y
+    STA A
+    AND A
+    STA A
+    PLA
+    STA HL+1
+    PLA
+    STA HL
+    LDA A
+    CMP #$00
+    BEQ SkipDrawAlien
+    INC HL
+    INC HL
+    LDA (HL), Y
+    STA A
+    INC HL
+    LDA (HL), Y
+    STA BC
+    LDA #$fe
+    AND BC
+    ASL
+    ASL
+    ASL
+    STA DE
+    STY DE+1
+    LDA #$00
+    ADC DE
+    STA HL
+    LDA #$1c
+    ADC DE+1
+    STA HL+1
+    LDA HL
+    STA TMP
+    LDA HL+1
+    STA TMP+1
+    LDA DE
+    STA HL
+    LDA DE+1
+    STA HL+1
+    LDA TMP
+    STA DE
+    LDA TMP+1
+    STA DE+1
+    LDA BC
+    AND BC
+    CMP #$00
+    BNE DAlout
+    LDA $200b
+    STA HL
+    LDX #$10
+    JSR DrawSprite
+SkipDrawAlien:
+    LDA #$00
+    STA $2000
+    RTS
+DAlout:
+    LDA #$30
+    ADC DE
+    STA HL
+    LDA #$00
+    ADC DE+1
+    STA HL+1
+    LDA HL
+    STA TMP
+    LDA HL+1
+    STA TMP+1
+    LDA DE
+    STA HL
+    LDA DE+1
+    STA HL+1
+    LDA TMP
+    STA DE
+    LDA TMP+1
+    STA DE+1
+    RTS
+
+
+
 
 DrawBottomLine:
     LDA #$02
@@ -628,7 +719,48 @@ RememberShieldEntry:
 ShieldsOut:
     RTS
 
-    .org $1439
+
+
+
+    .org $1424
+EraseSimpleSprite:
+    LDY #$00
+    JSR CnvtPixNumber
+ESSloop:
+    LDA HL
+    PHA
+    LDA HL+1
+    PHA
+    LDA #$00
+    STA (HL),Y
+    LDA HL
+    CLC
+    ADC #$01
+    STA HL
+    BCC ESSskip
+    INC HL+1
+ESSskip:
+    LDA #$00
+    STA (HL), Y
+    PLA
+    STA HL+1
+    PLA
+    STA HL
+    LDA HL
+    CLC
+    ADC #$20
+    STA HL
+    BCC ESSskip2
+    INC HL+1
+ESSskip2:
+    DEX
+    CPX #$00
+    BNE ESSloop
+    RTS
+
+
+
+
 DrawSimpSprite:
     LDY #$00
 DSSloop:
@@ -683,7 +815,7 @@ ShfSloop:
     DEY
     BNE ShfSloop
     RTS
-    
+
     .org $1538
 AExplodeTime:
 ; Time down the alien explosion. Remove when done.
@@ -695,6 +827,22 @@ AExplodeTime:
     LDA (HL), Y
     SBC #$01
     STA (HL), Y
+    CMP #$00
+    BEQ AExplodeDone
+    LDA $2064
+    STA HL
+    LDX #$10
+    JSR EraseSimpleSprite
+    LDA #$04
+    STA $2025
+    AND $2025
+    STA $2002
+    LDX #$f7
+    ;JMP SoundBits3Off
+AExplodeDone:
+    RTS
+
+
 
     .org $15d3
 DrawSprite:
@@ -983,6 +1131,14 @@ DrawStatus:
     JSR PrintHiScore
     JSR PrintCreditLabel
     JMP DrawNumCredits
+
+SoundBits3Off:
+; Turn off bit in sound port
+    ;LDA soundPort3
+    ;AND B
+    ;STA soundPort3
+    ;STA SOUND1
+    ;RTS
 
 DrawNumShips:
 ; Show ships remaining in hold for the player

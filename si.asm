@@ -212,11 +212,15 @@ TwoSecDelay:
     LDA #$80
     JMP WaitOnDelay
 
+SplashDemo:
+    ; POP HL?!?     ;does what?
+    JMP MGPTLskipsound 
+
 ISRSplTasks:
     LDA $20c1
     CLC
     ROR
-    ;BCS SplashDemo
+    BCS SplashDemo
     ROR
     BCS SplashSpriteTrampoline
     ROR
@@ -426,6 +430,14 @@ CreditButNoGame:
 
 
 MainGamePLayTimingLoop:
+    ; JSR TimeFleetSound
+MGPTLskipsound:
+    LDA $2032
+    STA $2080
+    JSR DrawAlien
+    ;JSR RunGameObjs
+    ;JSR TimeToSaucer
+    NOP                 ; ***Why? this is in the original code
 
 RestoreAndOut:
     PLA
@@ -468,6 +480,18 @@ InAlloop:
     BNE InAlloop
     RTS
 
+    .org $0d00
+; z80's $0100 has been moved here
+
+DrawAlien:
+    LDY #$00
+    LDA #$02
+    STA HL
+    LDA #$20
+    STA HL+1
+    LDA (HL), Y
+    AND (HL), Y
+    BNE AExplodeTime
 
 DrawBottomLine:
     LDA #$02
@@ -494,9 +518,6 @@ AddDelta:
 
 
 
-    .org $0d00
-; z80's $0100 has been moved here
-    .org $0de4
 CopyRAMMirror:
     LDX #$c0
     LDY #$00
@@ -662,7 +683,18 @@ ShfSloop:
     DEY
     BNE ShfSloop
     RTS
-
+    
+    .org $1538
+AExplodeTime:
+; Time down the alien explosion. Remove when done.
+    LDY #$00
+    LDA #$03
+    STA HL
+    LDA #$20
+    STA HL+1
+    LDA (HL), Y
+    SBC #$01
+    STA (HL), Y
 
     .org $15d3
 DrawSprite:

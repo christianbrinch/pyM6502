@@ -74,18 +74,11 @@ class Processor:
         self.reg_a = 0  # Accumulator A
         self.reg_x = 0  # Index register X
         self.reg_y = 0  # Index register Y
+        self.reg_p = int("00110100", 2)  # NV-BDIZC Status flags
 
         self.program_counter = 0x0000        # Program counter
         self.stack_pointer = 0xff            # stack pointer
         self.cycles = 0                      # Clock cycles
-
-        self.flag_n = False  # status flag - Negative Flag
-        self.flag_v = False  # status flag - Overflow Flag
-        self.flag_b = True   # status flag - Break Command
-        self.flag_d = False  # status flag - Decimal Mode Flag
-        self.flag_i = True   # status flag - Interrupt Disable
-        self.flag_z = True   # status flag - Zero Flag
-        self.flag_c = False  # status flag - Carry Flag
 
         self.ins = instructions.Set()
         self.reset()
@@ -94,16 +87,16 @@ class Processor:
         ''' Reset processor. Program counter is initialized to FCE2 and
             stack counter to 01FD. '''
         self.program_counter = self.read_word(0xfffc)  # Hardcoded start vector post-reset
-        self.stack_pointer = 0xff      # Hardcoded stack pointer post-reset
+        self.stack_pointer = 0xff       # Hardcoded stack pointer post-reset
         self.cycles = 0
-        self.flag_n = False            # Negative
-        self.flag_v = False            # Overflow
+        self.reg_p = int("00110100", 2) # NV-BDIZC
 
-        self.flag_b = True             #
-        self.flag_d = False            # Decimal
-        self.flag_i = True             # Interrupt disable
-        self.flag_z = True             # Zero
-        self.flag_c = False            # Carry
+    def toggle(self, bit, value):
+        ''' Toggle a bit in register p based on value
+            Flags: NV-BDIZC
+        '''
+        self.reg_p = (self.reg_p & ~(1 << bit)) | (bool(value) << bit)
+        return
 
     def read_byte(self, address: int):
         return self.memory[address]
@@ -193,23 +186,17 @@ class Processor:
 
         if output:
             print()
-            print(f"{Fore.CYAN}PC{Style.RESET_ALL} 0x{self.program_counter:0>2x} "
+            print(f"{Fore.CYAN}PC{Style.RESET_ALL} 0x{self.program_counter:0>04x} "
                   f"{Fore.CYAN}Reg A{Style.RESET_ALL} 0x{self.reg_a:0>2x} "
                   f"{Fore.CYAN}Reg X{Style.RESET_ALL} 0x{self.reg_x:0>2x} "
                   f"{Fore.CYAN}Reg Y{Style.RESET_ALL} 0x{self.reg_y:0>2x} "
-                  f"{Fore.CYAN}SP{Style.RESET_ALL} 0x{self.stack_pointer:0>2x}{' '*14}"
+                  f"{Fore.CYAN}SP{Style.RESET_ALL} 0x{self.stack_pointer:0>2x}{' '*12}"
                   f"{Fore.CYAN}NV-BDIZC{Style.RESET_ALL} "
-                  f"{1 if self.flag_n==True else 0}"
-                  f"{1 if self.flag_v==True else 0}"
-                  f"1"
-                  f"{1 if self.flag_b==True else 0}"
-                  f"{1 if self.flag_d==True else 0}"
-                  f"{1 if self.flag_i==True else 0}"
-                  f"{1 if self.flag_z==True else 0}"
-                  f"{1 if self.flag_c==True else 0}"
+                  f"{self.reg_p:>08b}"
                   f"{' '*11}"
                   f"{Fore.CYAN}OPcode{Style.RESET_ALL} 0x{Fore.YELLOW}{opcode:0>2x}{Style.RESET_ALL} "
                   f"{self.OPCODEs[opcode]}:{self.ADDRESSING[opcode]}")
+
             print()
         if zeropage:
             print(f"{Fore.CYAN}Zero page{Style.RESET_ALL}", end='')

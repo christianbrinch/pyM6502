@@ -501,7 +501,7 @@ DrawAlien:
     BNE AExplodeTimeTrampoline ; If yes, time down the explosion
 
 ; if there are no exploding aliens, go drawn the grid
-    LDA HL                  ; Push...             
+    LDA HL                  ; Push...
     PHA                     ; HL
     LDA HL+1                ; to the
     PHA                     ; ...stack
@@ -533,12 +533,12 @@ DrawAlien:
     LDA (HL), Y             ; Get animation number
     STA BC                  ; ...and store this in B
     LDA A                   ; Get row number back
-    AND #$fe                ; Translate row to alien type... 
+    AND #$fe                ; Translate row to alien type...
     ASL                     ;
     ASL                     ;
     ASL                     ;
     STA DE                  ; ...and save the result to Low-byte of DE
-    STY DE+1                ; Put 0 into the high-byte of DE 
+    STY DE+1                ; Put 0 into the high-byte of DE
 
     LDA #$00                ; Now add $1c00 to DE
     ADC DE                  ; add 00 to low byte...
@@ -565,7 +565,7 @@ DrawAlien:
     CMP #$00                ; or 1
     BNE DAloffset           ; if 1, jump to offset sprite below
     LDA $200b               ; Load alien pixel position
-    STA HL                  ; ...    
+    STA HL                  ; ...
     LDA $200c               ; and store it in HL
     STA HL+1                ; ...
     LDX #$10                ; Put sprite size in X

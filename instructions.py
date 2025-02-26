@@ -9,6 +9,7 @@ __maintainer__ = "Christian Brinch"
 __email__ = "brinch.c@gmail.com"
 
 
+
 class Set:
     ''' Addressing modes '''
     def get_imm(self, obj):
@@ -61,25 +62,25 @@ class Set:
     def lda(self, obj, mode):
         ''' Load register A '''
         obj.reg_a = eval("self.get_"+mode+"(obj)")
-        obj.flag_z = bool(not obj.reg_a)
-        obj.flag_n = bool(int(format(obj.reg_a, '08b')[-8]))
+        obj.toggle(1, not obj.reg_a)        # toogle Z
+        obj.toggle(7, obj.reg_a & 0x80)     # toogle N
 
     def ldx(self, obj, mode):
         ''' Load register X '''
         obj.reg_x = eval("self.get_"+mode+"(obj)")
-        obj.flag_z = bool(not obj.reg_x)
-        obj.flag_n = bool(int(format(obj.reg_x, '08b')[-8]))
+        obj.toggle(1, not obj.reg_x)        # toogle Z
+        obj.toggle(7, obj.reg_x & 0x80)     # toogle N
 
     def ldy(self, obj, mode):
         ''' Load register Y '''
         obj.reg_y = eval("self.get_"+mode+"(obj)")
-        obj.flag_z = bool(not obj.reg_y)
-        obj.flag_n = bool(int(format(obj.reg_y, '08b')[-8]))
+        obj.toggle(1, not obj.reg_y)        # toogle Z
+        obj.toggle(7, obj.reg_y & 0x80)     # toogle N
+
 
     def sta(self, obj, mode):
         ''' Store register A '''
         obj.write_byte(eval("self.put_"+mode+"(obj)"), obj.reg_a)
-
 
     def stx(self, obj, mode):
         ''' Store register X '''
@@ -94,26 +95,26 @@ class Set:
     def tax(self, obj, mode):
         ''' Transfer A to X '''
         obj.reg_x = obj.reg_a
-        obj.flag_z = bool(not obj.reg_a)
-        obj.flag_n = bool(int(format(obj.reg_a, '08b')[-8]))
+        obj.toggle(1, not obj.reg_a)        # toogle Z
+        obj.toggle(7, obj.reg_a & 0x80)     # toogle N
 
     def tay(self, obj, mode):
         ''' Transfer A to Y '''
         obj.reg_y = obj.reg_a
-        obj.flag_z = bool(not obj.reg_y)
-        obj.flag_n = bool(int(format(obj.reg_y, '08b')[-8]))
+        obj.toggle(1, not obj.reg_y)        # toogle Z
+        obj.toggle(7, obj.reg_y & 0x80)     # toogle N
 
     def tsx(self, obj, mode):
         ''' Transfer stack pointer to X '''
         obj.reg_x = obj.stack_pointer
-        obj.flag_z = bool(not obj.reg_x)
-        obj.flag_n = bool(int(format(obj.reg_x, '08b')[-8]))
+        obj.toggle(1, not obj.reg_x)        # toogle Z
+        obj.toggle(7, obj.reg_x & 0x80)     # toogle N
 
     def txa(self, obj, mode):
         ''' Transfer X to A '''
         obj.reg_a = obj.reg_x
-        obj.flag_z = bool(not obj.reg_a)
-        obj.flag_n = bool(int(format(obj.reg_a, '08b')[-8]))
+        obj.toggle(1, not obj.reg_a)        # toogle Z
+        obj.toggle(7, obj.reg_a & 0x80)     # toogle N
 
     def txs(self, obj, mode):
         ''' Transfer stack pointer to X '''
@@ -122,8 +123,9 @@ class Set:
     def tya(self, obj, mode):
         ''' Transfer Y to A '''
         obj.reg_a = obj.reg_y
-        obj.flag_z = bool(not obj.reg_a)
-        obj.flag_n = bool(int(format(obj.reg_a, '08b')[-8]))
+        obj.toggle(1, not obj.reg_a)        # toogle Z
+        obj.toggle(7, obj.reg_a & 0x80)     # toogle N
+
 
     ''' Section 3: Stack instructions'''
 
@@ -143,158 +145,145 @@ class Set:
         ''' Arithmetic shift left '''
         if mode == 'acc':
             value = obj.reg_a
-            obj.flag_c = bool(int(format(value, '08b')[-8]))
+            obj.toggle(0, not value)        # toogle C
             value = min(value << 1, 0xff)
             obj.reg_a = value
         else:
             value = eval("self.get_"+mode+"(obj)")
-            obj.flag_c = bool(int(format(value, '08b')[-8]))
+            obj.toggle(0, not value)        # toogle C
             addr = eval("self.put_"+mode+"(obj)")
             value = min(value << 1, 0xff)
             obj.write_byte(addr, value)
-        obj.flag_n = bool(int(format(value, '08b')[-8]))
-        obj.flag_z = bool(not value)
+        obj.toggle(1, not value)        # toogle Z
+        obj.toggle(7, value & 0x80)     # toogle N
+
 
     def lsr(self, obj, mode):
         ''' Logical shift right '''
         if mode == 'acc':
             value = obj.reg_a
-            obj.flag_c = bool(int(format(value, '08b')[-1]))
+            obj.toggle(0, value & 0x01)        # toogle C
             value = value >> 1
             obj.reg_a = value
         else:
             value = eval("self.get_"+mode+"(obj)")
-            obj.flag_c = bool(int(format(value, '08b')[-1]))
+            obj.toggle(0, value & 0x01)        # toogle C
             addr = eval("self.put_"+mode+"(obj)")
             value = value >> 1
             obj.write_byte(addr, value)
-        obj.flag_n = False
-        obj.flag_z = bool(not value)
+        obj.toggle(1, not value)        # toogle Z
+        obj.toggle(7, 0x00)             # toogle N
 
     def rol(self, obj, mode):
         ''' Rotate bits to the left '''
         if mode == 'acc':
             value = obj.reg_a
-            obj.flag_c = bool(int(format(value, '08b')[-8]))
-            value = max((value << 1) + int(obj.flag_c), 0xff)
+            obj.toggle(0, value & 0x80)        # toogle C
+            value = max((value << 1) + (obj.reg_p & 0x01), 0xff)
             obj.reg_a = value
         else:
             value = eval("self.get_"+mode+"(obj)")
-            obj.flag_c = bool(int(format(value, '08b')[-8]))
+            obj.toggle(0, value & 0x80)        # toogle C
             addr = eval("self.put_"+mode+"(obj)")
-            value = max((value << 1) + int(obj.flag_c), 0xff)
+            value = max((value << 1) + (obj.reg_p & 0x01), 0xff)
             obj.write_byte(addr, value)
-        obj.flag_n = bool(int(format(value, '08b')[-8]))
-        obj.flag_z = bool(value)
+        obj.toggle(1, not value)        # toogle Z
+        obj.toggle(7, value & 0x80)     # toogle N
+
 
     def ror(self, obj, mode):
         ''' Rotate bits to the right '''
         if mode == 'acc':
             value = obj.reg_a
-            obj.flag_c = bool(value & (1<<0))
-            value = (value >> 1) | int(obj.flag_c) * 0x80
+            obj.toggle(0, value & 0x01)        # toogle C
+            value = (value >> 1) | (obj.reg_p & 0x01) * 0x80
             obj.reg_a = value
         else:
             value = eval("self.get_"+mode+"(obj)")
-            obj.flag_c = bool(value & (1<<0))
+            obj.toggle(0, value & 0x01)        # toogle C
             addr = eval("self.put_"+mode+"(obj)")
-            value = (value >> 1) | int(obj.flag_c) * 0x80
+            value = (value >> 1) | (obj.reg_p & 0x01) * 0x80
             obj.write_byte(addr, value)
-        obj.flag_n = bool(value & 0x80)
-        obj.flag_z = not bool(value)
+        obj.toggle(1, not value)        # toogle Z
+        obj.toggle(7, value & 0x80)     # toogle N
+
 
     ''' Section 5: Logical instructions'''
 
     def AND(self, obj, mode):
         ''' Logical AND with accumulator & '''
         obj.reg_a = obj.reg_a & eval("self.get_"+mode+"(obj)")
-        obj.flag_z = bool(obj.reg_a)
-        obj.flag_n = bool(int(format(obj.reg_a, '08b')[-8]))
+        obj.toggle(1, not obj.reg_a)        # toogle Z
+        obj.toggle(7, obj.reg_a & 0x80)     # toogle N
+
 
     def bit(self, obj, mode):
         ''' Test bit in memory with accumulator '''
         value = eval("self.get_"+mode+"(obj)")
-        obj.flag_n = bool(int(format(value, '08b')[-8]))
-        obj.flag_v = bool(int(format(value, '08b')[-7]))
-        obj.flag_z = bool(not (value & obj.reg_a))
+        obj.toggle(6, value & 0x20)                   # toogle V
+        obj.toggle(1, not (value & obj.reg_a))        # toogle Z
+        obj.toggle(7, value & 0x80)                   # toogle N
 
     def eor(self, obj, mode):
         ''' Binary Exclusive OR with accumulator ^'''
         obj.reg_a = obj.reg_a ^ eval("self.get_"+mode+"(obj)")
-        obj.flag_z = bool(not obj.reg_a)
-        obj.flag_n = bool(int(format(obj.reg_a, '08b')[-8]))
+        obj.toggle(1, not obj.reg_a)        # toogle Z
+        obj.toggle(7, obj.reg_a & 0x80)     # toogle N
 
     def ora(self, obj, mode):
         ''' Binary OR with accumulator | '''
         obj.reg_a = obj.reg_a | eval("self.get_"+mode+"(obj)")
-        obj.flag_z = bool(not obj.reg_a)
-        obj.flag_n = bool(int(format(obj.reg_a, '08b')[-8]))
+        obj.toggle(1, not obj.reg_a)        # toogle Z
+        obj.toggle(7, obj.reg_a & 0x80)     # toogle N
 
     ''' Section 6: Arithmetic instructions '''
 
     def adc(self, obj, mode):
         ''' Add with carry '''
         value = eval("self.get_"+mode+"(obj)")
-        n = int(format(value, '08b')[-8])
-        m = int(format(obj.reg_a, '08b')[-8])
-        obj.reg_a = obj.reg_a + value
-        if obj.reg_a > 0xff:
-            obj.reg_a -= 0x100
-            obj.flag_c = True
-        else:
-            obj.flag_c = False
-        # obj.flag_v = (not m & not n & not obj.flag_c) | (m & n & ! obj.flag_c)
-        obj.flag_z = bool(not obj.reg_a)
-        obj.flag_n = bool(int(format(obj.reg_a, '08b')[-8]))
+        result = obj.reg_a + value
+        obj.toggle(6, (~(obj.reg_a ^ value)) & (obj.reg_a ^ result)) # toggle overflow flag
+        obj.reg_a = result % 0xff
+
+        obj.toggle(0, int(result > 0xff))   # Toggle carry
+        obj.toggle(1, not obj.reg_a)        # toogle Z
+        obj.toggle(7, obj.reg_a & 0x80)     # toogle N
+
+
 
     def cmp(self, obj, mode):
         ''' Compare memory and accumulator '''
         value = eval("self.get_"+mode+"(obj)")
-        obj.flag_c = obj.reg_a >= value
-        obj.flag_z = bool(not (obj.reg_a - value))
-        obj.flag_n = bool((obj.reg_a - value) & 0x80)
-        #if obj.reg_a - value < 0:
-        #    obj.flag_n = True
-        #else:
-        #    obj.flag_n = False
+        obj.toggle(0, int(obj.reg_a >= value))      # toogle C
+        obj.toggle(1, not (obj.reg_a-value))        # toogle Z
+        obj.toggle(7, (obj.reg_a-value) & 0x80)     # toogle N
+
 
     def cpx(self, obj, mode):
         ''' Compare Register X '''
         value = eval("self.get_"+mode+"(obj)")
-        obj.flag_c = obj.reg_x >= value
-        obj.flag_z = bool(not (obj.reg_x - value))
-        if obj.reg_x - value < 0:
-            obj.flag_n = True
-        else:
-            obj.flag_n = False
+        obj.toggle(0, int(obj.reg_x >= value))      # toogle C
+        obj.toggle(1, not (obj.reg_x-value))        # toogle Z
+        obj.toggle(7, int((obj.reg_x-value)<0))     # toogle N
+
 
     def cpy(self, obj, mode):
         ''' Compare Register Y '''
         value = eval("self.get_"+mode+"(obj)")
-        obj.flag_c = obj.reg_y >= value
-        obj.flag_z = bool(not (obj.reg_y - value))
-        if obj.reg_y - value < 0:
-            obj.flag_n = True
-        else:
-            obj.flag_n = False
+        obj.toggle(0, int(obj.reg_y >= value))      # toogle C
+        obj.toggle(1, not (obj.reg_y-value))        # toogle Z
+        obj.toggle(7, int((obj.reg_y-value)<0))     # toogle N
 
     def sbc(self, obj, mode):
         ''' Subtract with borrow '''
         value = eval("self.get_"+mode+"(obj)")
-        n = int(format(value, '08b')[-8])
-        m = int(format(obj.reg_a, '08b')[-8])
-        obj.reg_a = obj.reg_a - value - (1- int(obj.flag_c))
-        if obj.reg_a >= 0:
-            obj.flag_c = True
-        else:
-            obj.flag_c = False
-            # obj.flag_v = True
+        obj.reg_a = obj.reg_a - value - (1- (obj.reg_p & 0x01))
+        if obj.reg_a < 0:
             obj.reg_a += 0x100
-        if obj.reg_a > 0x80:
-            obj.flag_n = True
-        else:
-            obj.flag_n = False
-        obj.flag_z = bool(not obj.reg_a)
+        obj.toggle(0, int(obj.reg_a>0x00))     # toogle C
+        obj.toggle(1, not obj.reg_a)           # toogle Z
+        obj.toggle(7, int(obj.reg_a>0x80))     # toogle N
+
 
     ''' Section 7: Incrementing instructions '''
 
@@ -304,28 +293,26 @@ class Set:
         value = obj.read_byte(addr)
         value = (value - 1) % 256
         obj.write_byte(addr, value)
-        obj.flag_z = bool(not value)
-        obj.flag_n = obj.flag_n = bool(value & 0x80)
+        obj.toggle(1, not value)        # toogle Z
+        obj.toggle(7, value & 0x80)     # toogle N
+
 
     def dex(self, obj, mode):
         ''' Decrement register X '''
         obj.reg_x -= 0x01
         if obj.reg_x < 0:
-            obj.flag_n = True
             obj.reg_x = 0xff - (obj.reg_x + 1)
-        else:
-            obj.flag_n = False
-        obj.flag_z = bool(not obj.reg_x)
+
+        obj.toggle(1, not obj.reg_x)        # toogle Z
+        obj.toggle(7, int(obj.reg_x<0))     # toogle N
 
     def dey(self, obj, mode):
         ''' Decrement register Y '''
         obj.reg_y -= 0x01
         if obj.reg_y < 0:
-            obj.flag_n = True
             obj.reg_y = 0xff - (obj.reg_y + 1)
-        else:
-            obj.flag_n = False
-        obj.flag_z = bool(not obj.reg_y)
+        obj.toggle(1, not obj.reg_y)        # toogle Z
+        obj.toggle(7, int(obj.reg_y<0))     # toogle N
 
     def inc(self, obj, mode):
         ''' Increment memory by 1 '''
@@ -333,26 +320,27 @@ class Set:
         value = obj.read_byte(addr)
         value += 0x01
         obj.write_byte(addr, value%256)
-        obj.flag_z = bool(not value)
-        obj.flag_n = bool(int(format(value, '08b')[-8]))
+        obj.toggle(1, not value)        # toogle Z
+        obj.toggle(7, value & 0x80)     # toogle N
 
     def inx(self, obj, mode):
         ''' Increment register X '''
         obj.reg_x = (obj.reg_x+0x01)%256
-        obj.flag_z = bool(not obj.reg_x)
-        obj.flag_n = bool(int(format(obj.reg_x, '08b')[-8]))
+        obj.toggle(1, not obj.reg_x)        # toogle Z
+        obj.toggle(7, obj.reg_x & 0x80)     # toogle N
 
     def iny(self, obj, mode):
         ''' Increment register Y '''
         obj.reg_y = (obj.reg_y+0x01)%256
-        obj.flag_z = bool(not obj.reg_y)
-        obj.flag_n = bool(int(format(obj.reg_y, '08b')[-8]))
+        obj.toggle(1, not obj.reg_y)        # toogle Z
+        obj.toggle(7, obj.reg_y & 0x80)     # toogle N
+
 
     ''' Section 8: Control '''
 
     def brk(self, obj, mode):
         ''' Break - end program '''
-        obj.flag_b = False
+        obj.toggle(4,0)     # Clear B flag
 
     def jmp(self, obj, mode):
         ''' Jump to address '''
@@ -369,13 +357,7 @@ class Set:
     def rti(self, obj, mode):
         ''' Return from interrupt: 6 cycles '''
         obj.stack_pointer += 0x01
-        status = [(obj.read_byte(obj.stack_pointer+0x100)>>i)&1 for i in range(8)]
-        obj.flag_n = bool(status[0])
-        obj.flag_v = bool(status[1])
-        obj.flag_d = bool(status[4])
-        obj.flag_i = False
-        obj.flag_z = bool(status[6])
-        obj.flag_c = bool(status[7])
+        obj.reg_p = obj.read_byte(obj.stack_pointer+0x100)
         obj.stack_pointer += 0x01
         obj.program_counter = obj.read_word(obj.stack_pointer+0x100)
         obj.stack_pointer += 0x01
@@ -395,7 +377,7 @@ class Set:
         addr = obj.fetch_byte()
         if addr > 0x80:
             addr -= 0x100
-        if not obj.flag_c:
+        if not (obj.reg_p & 0x01):
             obj.program_counter += addr
 
     def bcs(self, obj, mode):
@@ -403,7 +385,7 @@ class Set:
         addr = obj.fetch_byte()
         if addr > 0x80:
             addr -= 0x100
-        if obj.flag_c:
+        if obj.reg_p & 0x01:
             obj.program_counter += addr
 
     def beq(self, obj, mode):
@@ -411,7 +393,7 @@ class Set:
         addr = obj.fetch_byte()
         if addr > 0x80:
             addr -= 0x100
-        if obj.flag_z:
+        if obj.reg_p & 0x02:
             obj.program_counter += addr
 
     def bmi(self, obj, mode):
@@ -419,7 +401,7 @@ class Set:
         addr = obj.fetch_byte()
         if addr > 0x80:
             addr -= 0x100
-        if obj.flag_n:
+        if obj.reg_p & 0x80:
             obj.program_counter += addr
 
     def bne(self, obj, mode):
@@ -427,7 +409,7 @@ class Set:
         addr = obj.fetch_byte()
         if addr > 0x80:
             addr -= 0x100
-        if not obj.flag_z:
+        if not(obj.reg_p & 0x02):
             obj.program_counter += addr
 
     def bpl(self, obj, mode):
@@ -435,7 +417,7 @@ class Set:
         addr = obj.fetch_byte()
         if addr > 0x80:
             addr -= 0x100
-        if not obj.flag_n:
+        if not(obj.reg_p & 0x80):
             obj.program_counter += addr
 
     def bvc(self, obj, mode):
@@ -443,7 +425,7 @@ class Set:
         addr = obj.fetch_byte()
         if addr > 0x80:
             addr -= 0x100
-        if not obj.flag_v:
+        if not(obj.reg_p & 0x40):
             obj.program_counter += addr
 
     def bvs(self, obj, mode):
@@ -451,7 +433,7 @@ class Set:
         addr = obj.fetch_byte()
         if addr > 0x80:
             addr -= 0x100
-        if obj.flag_v:
+        if obj.reg_p & 0x40 :
             obj.program_counter += addr
 
     ''' Section 10: Flags & NOP'''
@@ -459,37 +441,37 @@ class Set:
     def clc(self, obj, mode):
         ''' Clear carry flag '''
         obj.cycles += 1
-        obj.flag_c = False
+        obj.toggle(0,0)     # Clear C flag
 
     def cld(self, obj, mode):
         ''' Clear decimal flag '''
         obj.cycles += 1
-        obj.flag_d = False
+        obj.toggle(3,0)     # Clear D flag
 
     def cli(self, obj, mode):
         ''' Clear interupt disable '''
         obj.cycles += 1
-        obj.flag_i = False
+        obj.toggle(2,0)     # Clear I flag
 
     def clv(self, obj, mode):
         ''' Clear overflow flag '''
         obj.cycles += 1
-        obj.flag_v = False
+        obj.toggle(6,0)     # Clear V flag
 
     def sec(self, obj, mode):
         ''' Set carry flag '''
         obj.cycles += 1
-        obj.flag_c = True
+        obj.toggle(0,1)     # Set C flag
 
     def sed(self, obj, mode):
         ''' Set decimal mode '''
         obj.cycles += 1
-        obj.flag_d = True
+        obj.toggle(3,1)     # Set D flag
 
     def sei(self, obj, mode):
         ''' Set interupt disable '''
         obj.cycles += 1
-        obj.flag_i = True
+        obj.toggle(2,1)     # Set I flag
 
     def nop(self, obj, mode):
         ''' No operations '''

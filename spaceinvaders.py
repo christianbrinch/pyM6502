@@ -39,11 +39,12 @@ def cpu_step():
         if 8>cpu.memory[0x0060]>0:
             cpu.memory[0x0060] = cpu.memory[0x0060]*0x20
         if not IRQ:
-            if not cpu.flag_b:
+            if not (cpu.reg_p & 0x10):
                 cpu.exec(output=True, zeropage=True, mempage=0x20)
                 input()
             else:
                 cpu.exec(output=False)
+
         else:
             # Write IRQ handler address to IRQ vector
             cpu.write_word(0xfffe, IRQ)
@@ -54,8 +55,7 @@ def cpu_step():
             cpu.stack_pointer -= 0x01
 
             # Push status flags
-            status = (cpu.flag_n<<0)|(cpu.flag_v<<1)|(1<<2)|(cpu.flag_b<<3)|(cpu.flag_d<<4)|(cpu.flag_i<<5)|(cpu.flag_z<<6)|(cpu.flag_c<<7)
-            cpu.write_byte(cpu.stack_pointer+0x100, status)
+            cpu.write_byte(cpu.stack_pointer+0x100, cpu.reg_p)
             cpu.stack_pointer -= 0x01
 
             # Read interrupt vector at $fffe-$ffff
@@ -88,7 +88,7 @@ def horizontal_scanning():
 
 
         # Emulated interrupts
-        if not cpu.flag_i:
+        if not (cpu.reg_p & 0x04):
             if n%1==0:
                 IRQ = 0x0c10
 

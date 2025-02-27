@@ -30,6 +30,7 @@ INP2:
 GetShipsPerCred:
     LDA INP2
     AND #$03
+    CLC
     ADC #$03
     RTS
 
@@ -85,6 +86,7 @@ DCskip:
     BNE DCloop
     STA DE
     LDA A+1
+    CLC
     ADC #$1e
     STA DE+1
     LDX #$08
@@ -120,6 +122,7 @@ DrawHexByte:
     RTS
 
 Bump2NumberChar:
+    CLC
     ADC #$1a
     JMP DrawChar
 

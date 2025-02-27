@@ -241,9 +241,13 @@ class Set:
     def adc(self, obj, mode):
         ''' Add with carry '''
         value = eval("self.get_"+mode+"(obj)")
-        result = obj.reg_a + value
-        obj.toggle(6, (~(obj.reg_a ^ value)) & (obj.reg_a ^ result)) # toggle overflow flag
-        obj.reg_a = result % 0xff
+        result = obj.reg_a + value + (obj.reg_p & 0x01)
+        M = bool(obj.reg_a & 0x80)
+        N = bool(value & 0x80)
+        C = bool((obj.reg_a & 0x40) & (value & 0x40))
+        obj.toggle(6, (~M&~N&C) | (M&N&~C)) # toggle overflow flag
+
+        obj.reg_a = result % 0x100
 
         obj.toggle(0, int(result > 0xff))   # Toggle carry
         obj.toggle(1, not obj.reg_a)        # toogle Z
@@ -277,10 +281,14 @@ class Set:
     def sbc(self, obj, mode):
         ''' Subtract with borrow '''
         value = eval("self.get_"+mode+"(obj)")
-        obj.reg_a = obj.reg_a - value - (1- (obj.reg_p & 0x01))
-        if obj.reg_a < 0:
-            obj.reg_a += 0x100
-        obj.toggle(0, int(obj.reg_a>0x00))     # toogle C
+        result = obj.reg_a - value - (1- (obj.reg_p & 0x01))
+        M = bool(obj.reg_a & 0x80)
+        N = bool(value & 0x80)
+        C = bool((obj.reg_a & 0x40) & (value & 0x40))
+        obj.toggle(6, (~M&N&C) | (M&~N&~C)) # toggle overflow flag
+        obj.reg_a = result % 0x100
+
+        obj.toggle(0, int(result>0x00))        # toogle C
         obj.toggle(1, not obj.reg_a)           # toogle Z
         obj.toggle(7, int(obj.reg_a>0x80))     # toogle N
 

@@ -74,8 +74,27 @@ def horizontal_scanning():
         frame_start = time.time()
         #screen.fill((0, 0, 0))  # Clear screen at start of frame; good approximation. CRT persistence time is 1-5 µs << ~16µs render time per frame
 
-        for scanline in range(SCANLINES):
-            # Simulate drawing one scanline
+        for scanline in range(SCANLINES//2):
+            # Simulate drawing one scanline, TOP OF THE SCREEN
+            base_addr = 0x2400+(32*scanline)
+            pixels = np.zeros((WIDTH, 3), dtype=np.uint8)
+
+            for i in range(32):
+                byte = mem[base_addr + i]
+                for bit in range(8):
+                    pixels[i * 8 + (bit)] = 255 if (byte & (1 << bit)) else 0  # Reverse bit order
+
+            pygame.surfarray.pixels3d(screen)[scanline, :, :] = pixels[::-1] # Rotate screen as per SI cabinet design
+
+        # Emulated interrupts
+        if not (cpu.reg_p & 0x04):
+            if n%1==0:
+                IRQ = 0x0c08
+
+
+        for scanline in range(SCANLINES//2):
+            scanline += SCANLINES//2
+            # Simulate drawing one scanline, BOTTOM OF THE SCREEN
             base_addr = 0x2400+(32*scanline)
             pixels = np.zeros((WIDTH, 3), dtype=np.uint8)
 
@@ -90,7 +109,7 @@ def horizontal_scanning():
         # Emulated interrupts
         if not (cpu.reg_p & 0x04):
             if n%1==0:
-                IRQ = 0x0c10
+                IRQ = 0x0c23
 
 
         pygame.display.flip()

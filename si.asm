@@ -216,7 +216,10 @@ TwoSecDelay:
     JMP WaitOnDelay
 
 SplashDemo:
-    ; POP HL?!?     ;does what?
+    PLA
+    STA HL+1
+    PLA
+    STA HL
     JMP MGPTLskipsound
 
 ISRSplTasks:
@@ -368,6 +371,10 @@ SkipShipReset:
 infiniloop:
     LDA #$01
     STA $20e9
+    nop
+    nop
+    nop
+
     JMP infiniloop
 
 
@@ -381,16 +388,31 @@ Reset:
     JMP init
     byte $00, $00
 
+    .org $0c08
 ScanLine96:
 ; midscreen interrupt (happens at scanline 128)
-    PHA
+    SEI
+    PHA             ; Push all hardware registers
     TXA
     PHA
     TYA
     PHA
-    JMP $0c8c   ; adjust to actual address
 
-    .org $0c10
+    LDA DE          ; Push Software registers
+    PHA
+    LDA DE+1
+    PHA
+    LDA HL
+    PHA
+    LDA HL+1
+    PHA
+    LDA BC
+    PHA
+    LDA BC+1
+    PHA
+    JMP MidScreenInterrupt
+
+    .org $0c23
 ScanLine224:
 ; end-of-screen interrupt (happens at line 224)
     SEI
@@ -412,8 +434,6 @@ ScanLine224:
     PHA
     LDA BC+1
     PHA
-
-
 
     DEC $20c0       ; Decrement general delay counter
     ; coin stuff goes here (0x0020 - 0x0041)
@@ -467,8 +487,81 @@ RestoreAndOut:
     RTI
 
     .org $0c8c
+MidScreenInterrupt:
 ; midscreen interupt continues here
+    LDA #$00
+    STA $2072               ; Put 0 in vblankstatus to indicate that upper screen objects can move
+    LDA $20e9               ; Read suspendplay
+    AND $20e9               ; Are we moving objects?
+    CMP #$00
+    BEQ RestoreAndOut       ; No? then out
+    LDA $20ef               ; Read gameMode
+    AND $20ef               ; Are we in game mode?
+    CMP #$00
+    BNE MSIskip             ; Yes? process objects and output
+    CLC
+    LDA $20c1               ; Read isrSplashTask
+    ROR                     ; Are we in demo mode?
+    BCC RestoreAndOut       ; No? then out
+MSIskip:
+    LDA #$20                ; Load $2020...
+    STA HL                  ; into HL
+    STA HL+1                ; ...into HL
+    ;JSR GameObjskipplayer
+    JSR CursorNextAlien
     JMP RestoreAndOut
+
+CursorNextAlien:
+    LDY #$00
+    LDA $2068               ; Load playerOK
+    AND $2068               ; Is the player blowing up?
+    CMP #$00
+    BEQ CNAout              ; Yes? Out
+    LDA $2000               ; Load waitOnDraw
+    AND $2000               ; Are we still drawing an alien?
+    CMP #$00
+    BNE CNAout              ; Yes? Out
+    LDA $2067               ; Load playerDataMSB
+    STA HL
+    LDA $2006               ; Load alienCurIndex
+    STA A
+    LDA #$02
+    STA DE
+CNAnextalien:
+    INC A
+    LDA A
+    CMP #$37
+    BNE CNAskip
+    ;JSR MoveRefAlien
+CNAskip:
+    STA HL+1
+    LDA (HL), Y
+    STA BC
+    DEC BC
+    CMP #$00
+    BEQ CNAnextalien
+    LDA A
+    STA $2006
+    ;JSR GetAlienCoords
+    LDA BC+1
+    STA HL
+    STA $200b
+    LDA HL+1
+    STA $200c
+    CLC
+    CMP #$28
+    BCC CNAskip2:
+    ;JMP KillPlayer
+CNAskip2:
+    LDA DE
+    STA $2004
+    LDA #$01
+    STA $2000
+CNAout:
+    RTS
+
+GetAlienCoords:
+    brk
 
  InitAliens:
     LDY #$00
@@ -486,7 +579,7 @@ InAlloop:
     BNE InAlloop
     RTS
 
-    .org $0d00
+    .org $0d30
 ; z80's $0100 has been moved here
 AExplodeTimeTrampoline:
     JMP AExplodeTime
@@ -571,7 +664,8 @@ DrawAlien:
     STA HL                  ; ...
     LDA $200c               ; and store it in HL
     STA HL+1                ; ...
-    LDX #$10                ; Put sprite size in X
+    LDA #$10                ; Put sprite size in B
+    STA BC
     JSR DrawSprite          ; Go draw!
 SkipDrawAlien:
     LDA #$00
@@ -613,6 +707,7 @@ AddDelta:
 
 CopyRAMMirror:
     LDX #$c0
+CRMInitEntry:
     LDY #$00
     LDA #$00
     STA DE
@@ -907,7 +1002,7 @@ GetPlayerDataPtr:
 
 
 
-    .org $1810
+    .org $180d
 DrawAdvTable:
 ; Draw "SCORE ADVANCE TABLE"
     LDA #$10
@@ -1044,7 +1139,7 @@ SplSexit:
 
 init:
     LDX #$00
-    JSR $0de6                   ; This is the copy-rom-to-ram, but skipping the first insctruction
+    JSR CRMInitEntry            ; This is the copy-rom-to-ram, but skipping the first insctruction
     JSR DrawStatus
     LDA #$08                    ; Load 8...
     STA $20cf                   ; ...into aShotReloadRate variable

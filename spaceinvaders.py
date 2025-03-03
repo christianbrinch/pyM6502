@@ -34,7 +34,6 @@ def cpu_step():
     global cpu
     run = 1
     step=False
-    st=0
     while run:
         if 8>cpu.memory[0x0060]>0:
             cpu.memory[0x0060] = cpu.memory[0x0060]*0x20
@@ -42,6 +41,10 @@ def cpu_step():
             if not (cpu.reg_p & 0x10):
                 cpu.exec(output=True, zeropage=True, mempage=0x20)
                 input()
+            elif cpu.program_counter == 0x0e0c:
+                print(cpu.memory[0x2006])
+                cpu.exec(output=False)
+
             else:
                 cpu.exec(output=False)
 
@@ -69,6 +72,7 @@ def horizontal_scanning():
     global mem
     n=0
     q=[]
+    intp = 0
     while True: #n<100:
         n+=1
         frame_start = time.time()
@@ -87,9 +91,10 @@ def horizontal_scanning():
             pygame.surfarray.pixels3d(screen)[scanline, :, :] = pixels[::-1] # Rotate screen as per SI cabinet design
 
         # Emulated interrupts
-        if not (cpu.reg_p & 0x04):
+        if not (cpu.reg_p & 0x04) and intp==0:
             if n%1==0:
                 IRQ = 0x0c08
+                intp = 1
 
 
         for scanline in range(SCANLINES//2):
@@ -107,9 +112,10 @@ def horizontal_scanning():
 
 
         # Emulated interrupts
-        if not (cpu.reg_p & 0x04):
+        if not (cpu.reg_p & 0x04) and intp == 1:
             if n%1==0:
                 IRQ = 0x0c23
+                intp = 0
 
 
         pygame.display.flip()

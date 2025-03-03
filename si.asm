@@ -539,10 +539,10 @@ CNAskip:
     STA BC
     DEC BC
     CMP #$00
-    BEQ CNAnextalien
+    BNE CNAnextalien
     LDA A
     STA $2006
-    ;JSR GetAlienCoords
+    JSR GetAlienCoords
     LDA BC+1
     STA HL
     STA $200b
@@ -550,7 +550,7 @@ CNAskip:
     STA $200c
     CLC
     CMP #$28
-    BCC CNAskip2:
+    BCC CNAskip2
     ;JMP KillPlayer
 CNAskip2:
     LDA DE
@@ -561,7 +561,43 @@ CNAout:
     RTS
 
 GetAlienCoords:
-    brk
+    LDA #$00        ; Put a zero...
+    STA DE          ; ...in D
+    LDA HL+1        ; Put L...      
+    STA A           ; ...into A (A is now Alien index)
+    LDA $2009       ; Load content of $2009 (alien X)...
+    STA BC          ; ...and put it in B
+    LDA $200a       ; Increment address (Alien Y)...
+    STA BC+1        ; ...and put it in C (BC is XY)
+GACloop:
+    LDA A
+    CMP #$0b        ; Compare A to 11 (full row)
+    BMI GACskip     ; If negative, row is found
+    SBC #$0b        ; otherwise, subtract 11
+    STA DE+1        ; Put A in E      
+    LDA BC          ; Add...
+    ADC #$10        ; 16...
+    STA BC          ; to Alien X
+    LDA DE+1        ; Restore A
+    STA A           ; Put A on hold
+    INC DE          ; Increment D to go to next row
+    JMP GACloop     ; Next row
+GACskip:
+    LDA BC          ; We have the row
+GACskip2:
+    AND A           ; Right column?
+    CMP #$00        ; ...
+    BEQ GACout      ; ...Yes? Then out. 
+    STA DE+1        ; Temporary store A
+    LDA BC+1        ; Load C 
+    ADC #$10        ; Add...    
+    STA BC+1        ; 16 to alien Y
+    LDA DE+1        ; Restore A
+    SBC #$01        ; Decrease A?
+    JMP GACskip2
+GACout:
+    RTS
+
 
  InitAliens:
     LDY #$00
@@ -579,7 +615,7 @@ InAlloop:
     BNE InAlloop
     RTS
 
-    .org $0d30
+    .org $0d80
 ; z80's $0100 has been moved here
 AExplodeTimeTrampoline:
     JMP AExplodeTime

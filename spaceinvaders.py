@@ -38,13 +38,11 @@ def cpu_step():
         if 8>cpu.memory[0x0060]>0:
             cpu.memory[0x0060] = cpu.memory[0x0060]*0x20
         if not IRQ:
+            #if cpu.program_counter == 0x0e0a:
+            #    print("HL:", hex(cpu.memory[0x05]), hex(cpu.memory[0x04]), "DE:", hex(cpu.memory[0x03]), hex(cpu.memory[0x02]))
             if not (cpu.reg_p & 0x10):
                 cpu.exec(output=True, zeropage=True, mempage=0x20)
                 input()
-            elif cpu.program_counter == 0x0e0c:
-                print(cpu.memory[0x2006])
-                cpu.exec(output=False)
-
             else:
                 cpu.exec(output=False)
 

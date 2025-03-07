@@ -461,6 +461,7 @@ MGPTLskipsound:
     LDA $2032
     STA $2080
     JSR DrawAlien
+
     ;JSR RunGameObjs
     ;JSR TimeToSaucer
     NOP                 ; ***Why? this is in the original code
@@ -511,6 +512,109 @@ MSIskip:
     JSR CursorNextAlien
     JMP RestoreAndOut
 
+
+
+    .org $0d90
+; z80's $0100 has been moved here
+AExplodeTimeTrampoline:
+    JMP AExplodeTime
+
+DrawAlien:
+    LDY #$00                ; Put zero in Y (as we always do)
+; check for exploding alien
+    LDA #$02                ; Put the address...
+    STA HL                  ; $2002
+    LDA #$20                ; into
+    STA HL+1                ; ...HL
+    LDA (HL), Y             ; Load from $2002
+    AND (HL), Y             ; Is it 1 (alien exploding)?
+    CMP #$00                ; check...
+    BNE AExplodeTimeTrampoline ; If yes, time down the explosion
+
+; if there are no exploding aliens, go drawn the grid
+    LDA HL                  ; Push...
+    PHA                     ; HL
+    LDA HL+1                ; to the
+    PHA                     ; ...stack
+
+    LDA $2006               ; Get index of current alien...
+    STA HL                  ; ...and put it in low-byte of HL
+    LDA $2067               ; Get the player high-byte (21 or 22)
+    STA HL+1                ; ...and put it in HL high-byte (2103 for player 1, alien 4)
+
+    LDA (HL), Y             ; Load alien status
+    STA A                   ; temporary store it in A
+    AND A                   ; Is it alive (1 if alive)?
+    STA A                   ; Temporary store the result
+
+    PLA                     ; Pop HL...
+    STA HL+1                ; from
+    PLA                     ; the
+    STA HL                  ; ...stack (HL is now 2002 as set above)
+
+    LDA A                   ; Get alien status...
+    CMP #$00                ; Is it dead?
+    BEQ SkipDrawAlien       ; if yes, ship drawing it
+
+    INC HL                  ; HL = $2003
+    INC HL                  ; HL = $2004 <- this is the pointer to the alien's row
+    LDA (HL), Y             ; What kind of alien lives in this row?
+    STA A                   ; ... Temporary store this
+    INC HL                  ; HL = $2005 <- animation number
+    LDA (HL), Y             ; Get animation number
+    STA BC                  ; ...and store this in B
+    LDA A                   ; Get row number back
+    AND #$fe                ; Translate row to alien type...
+    ASL                     ;
+    ASL                     ;
+    ASL                     ;
+    STA DE                  ; ...and save the result to Low-byte of DE
+    STY DE+1                ; Put 0 into the high-byte of DE
+
+    LDA #$00                ; Now add $1c00 to DE
+    CLC
+    ADC DE                  ; add 00 to low byte...
+    STA HL                  ; and store in HL low-byte
+    LDA #$1c                ; now add $1c to high byte...
+    ADC DE+1                ; ...
+    STA HL+1                ; and store it in HL high-byte
+                            ; HL is now 1cxx where xx is alien type
+    LDA HL                  ; Now we need to flip DE and HL...
+    STA TMP                 ; ...
+    LDA HL+1                ; ...
+    STA TMP+1               ; ...
+    LDA DE                  ; Possibly make this a subroutine
+    STA HL                  ; ...
+    LDA DE+1                ; ...
+    STA HL+1                ; ...
+    LDA TMP                 ; ...
+    STA DE                  ; ...
+    LDA TMP+1               ; ...
+    STA DE+1                ; ... done flipping
+
+    LDA BC                  ; Get animation number back
+    AND BC                  ; Check if it is 0...
+    CMP #$00                ; or 1
+    BEQ DALskip2
+    JSR DAloffset           ; if 1, jump to offset sprite below
+DALskip2:
+    LDA $200b               ; Load alien pixel position
+    STA HL                  ; ...
+    LDA $200c               ; and store it in HL
+    STA HL+1                ; ...
+    LDA #$10                ; Put sprite size in B
+    STA BC
+    JSR DrawSprite          ; Go draw!
+SkipDrawAlien:
+    LDA #$00
+    STA $2000
+    RTS
+DAloffset:
+    LDA #$30
+    ADC DE
+    STA DE
+    RTS
+
 CursorNextAlien:
     LDY #$00
     LDA $2068               ; Load playerOK
@@ -523,11 +627,10 @@ CursorNextAlien:
     BNE CNAout              ; Yes? Out
     LDA $2067               ; Load playerDataMSB
     STA HL+1
+    nop
+    nop
     LDA $2006               ; Load alienCurIndex
     STA A
-    cmp #$04
-    bne temp
-temp:
     LDA #$02
     STA DE
 CNAnextalien:
@@ -535,7 +638,8 @@ CNAnextalien:
     LDA A
     CMP #$37
     BNE CNAskip
-    ;JSR MoveRefAlien
+    JSR MoveRefAlien
+
 CNAskip:
     STA HL
     LDA (HL), Y
@@ -605,8 +709,47 @@ GACskip2:
 GACout:
     RTS
 
+MoveRefAlien:
+    DEC DE
+    LDA DE
+    CMP #$00
+    BEQ ReturnTwo
+    LDA #$20
+    STA HL+1
+    LDA #$06
+    STA HL
+    LDA #$00
+    STA (HL), Y
+    INC HL
+    LDA (HL), Y
+    STA BC+1
+    LDA #$00
+    STA (HL), Y
+    JSR AddDelta
+    LDA #$20
+    STA HL+1
+    LDA #$05
+    STA HL
+    LDA (HL), Y
+    CLC
+    ADC #$01
+    AND #$01
+    STA (HL), Y
+    LDA #$00
+    LDA #$20
+    STA HL+1
+    LDA #$67
+    STA HL
+    LDA (HL), Y
+    STA HL+1
+    LDA #$00
+    STA A
+    RTS
 
- InitAliens:
+
+
+
+    InitAliens:
     LDY #$00
     LDA #$00
     STA HL
@@ -622,105 +765,12 @@ InAlloop:
     BNE InAlloop
     RTS
 
-    .org $0d90
-; z80's $0100 has been moved here
-AExplodeTimeTrampoline:
-    JMP AExplodeTime
-
-DrawAlien:
-    LDY #$00                ; Put zero in Y (as we always do)
-; check for exploding alien
-    LDA #$02                ; Put the address...
-    STA HL                  ; $2002
-    LDA #$20                ; into
-    STA HL+1                ; ...HL
-    LDA (HL), Y             ; Load from $2002
-    AND (HL), Y             ; Is it 1 (alien exploding)?
-    CMP #$00                ; check...
-    BNE AExplodeTimeTrampoline ; If yes, time down the explosion
-
-; if there are no exploding aliens, go drawn the grid
-    LDA HL                  ; Push...
-    PHA                     ; HL
-    LDA HL+1                ; to the
-    PHA                     ; ...stack
-
-    LDA $2006               ; Get index of current alien...
-    STA HL                  ; ...and put it in low-byte of HL
-    LDA $2067               ; Get the player high-byte (21 or 22)
-    STA HL+1                ; ...and put it in HL high-byte (2103 for player 1, alien 4)
-
-    LDA (HL), Y             ; Load alien status
-    STA A                   ; temporary store it in A
-    AND A                   ; Is it alive (1 if alive)?
-    STA A                   ; Temporary store the result
-
-    PLA                     ; Pop HL...
-    STA HL+1                ; from
-    PLA                     ; the
-    STA HL                  ; ...stack (HL is now 2002 as set above)
-
-    LDA A                   ; Get alien status...
-    CMP #$00                ; Is it dead?
-    BEQ SkipDrawAlien       ; if yes, ship drawing it
-
-    INC HL                  ; HL = $2003
-    INC HL                  ; HL = $2004 <- this is the pointer to the alien's row
-    LDA (HL), Y             ; What kind of alien lives in this row?
-    STA A                   ; ... Temporary store this
-    INC HL                  ; HL = $2005 <- animation number
-    LDA (HL), Y             ; Get animation number
-    STA BC                  ; ...and store this in B
-    LDA A                   ; Get row number back
-    AND #$fe                ; Translate row to alien type...
-    ASL                     ;
-    ASL                     ;
-    ASL                     ;
-    STA DE                  ; ...and save the result to Low-byte of DE
-    STY DE+1                ; Put 0 into the high-byte of DE
-
-    LDA #$00                ; Now add $1c00 to DE
-    ADC DE                  ; add 00 to low byte...
-    STA HL                  ; and store in HL low-byte
-    LDA #$1c                ; now add $1c to high byte...
-    ADC DE+1                ; ...
-    STA HL+1                ; and store it in HL high-byte
-                            ; HL is now 1cxx where xx is alien type
-    LDA HL                  ; Now we need to flip DE and HL...
-    STA TMP                 ; ...
-    LDA HL+1                ; ...
-    STA TMP+1               ; ...
-    LDA DE                  ; Possibly make this a subroutine
-    STA HL                  ; ...
-    LDA DE+1                ; ...
-    STA HL+1                ; ...
-    LDA TMP                 ; ...
-    STA DE                  ; ...
-    LDA TMP+1               ; ...
-    STA DE+1                ; ... done flipping
-
-    LDA BC                  ; Get animation number back
-    AND BC                  ; Check if it is 0...
-    CMP #$00                ; or 1
-    BNE DAloffset           ; if 1, jump to offset sprite below
-    LDA $200b               ; Load alien pixel position
-    STA HL                  ; ...
-    LDA $200c               ; and store it in HL
-    STA HL+1                ; ...
-    LDA #$10                ; Put sprite size in B
-    STA BC
-    JSR DrawSprite          ; Go draw!
-SkipDrawAlien:
-    LDA #$00
-    STA $2000
+ReturnTwo:
+    PLA
+    STA HL+1
+    PLA
+    STA HL
     RTS
-DAloffset:
-    LDA #$30
-    ADC DE
-    STA DE
-    RTS
-
-
 
 
 DrawBottomLine:

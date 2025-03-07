@@ -35,11 +35,14 @@ def cpu_step():
     run = 1
     step=False
     while run:
+        # Emulate shift register
         if 8>cpu.memory[0x0060]>0:
             cpu.memory[0x0060] = cpu.memory[0x0060]*0x20
+
         if not IRQ:
-            if cpu.program_counter == 0x0e1c:
-                print("HL:", hex(cpu.memory[0x05]), hex(cpu.memory[0x04]), "DE:", hex(cpu.memory[0x03]), hex(cpu.memory[0x02]))
+            #if cpu.program_counter == 0x0c6c:
+            #    cpu.exec(output=True, zeropage=True, mempage=0x20)
+            #    input()
             if not (cpu.reg_p & 0x10):
                 cpu.exec(output=True, zeropage=True, mempage=0x20)
                 input()
@@ -71,7 +74,7 @@ def horizontal_scanning():
     n=0
     q=[]
     intp = 0
-    while True: #n<100:
+    while True:
         n+=1
         frame_start = time.time()
         #screen.fill((0, 0, 0))  # Clear screen at start of frame; good approximation. CRT persistence time is 1-5 µs << ~16µs render time per frame
@@ -89,10 +92,9 @@ def horizontal_scanning():
             pygame.surfarray.pixels3d(screen)[scanline, :, :] = pixels[::-1] # Rotate screen as per SI cabinet design
 
         # Emulated interrupts
-        if not (cpu.reg_p & 0x04) and intp==0:
-            if n%1==0:
-                IRQ = 0x0c08
-                intp = 1
+        if not (cpu.reg_p & 0x04) and intp==0 and not IRQ:
+            IRQ = 0x0c08
+            intp = 1
 
 
         for scanline in range(SCANLINES//2):
@@ -110,10 +112,9 @@ def horizontal_scanning():
 
 
         # Emulated interrupts
-        if not (cpu.reg_p & 0x04) and intp == 1:
-            if n%1==0:
-                IRQ = 0x0c23
-                intp = 0
+        if not (cpu.reg_p & 0x04) and intp == 1 and not IRQ:
+            IRQ = 0x0c23
+            intp = 0
 
 
         pygame.display.flip()

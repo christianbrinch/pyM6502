@@ -610,7 +610,11 @@ SkipDrawAlien:
     STA $2000
     RTS
 DAloffset:
+    brk
+    sei
+    nop
     LDA #$30
+    CLC
     ADC DE
     STA DE
     RTS

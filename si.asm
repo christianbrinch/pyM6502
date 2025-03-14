@@ -26,6 +26,36 @@ INP1:
 INP2:
     .byte $00
 
+    .org $0200
+RunGameObjs:
+    LDY #$00
+    LDA #$10
+    STA HL
+    LDA #$20
+    STA HL+1
+    LDA (HL), Y
+    STA A
+    CMP #$ff
+    BNE RGOskipout1
+    RTS
+RGOskipout1:
+    CMP #$fe
+    BEQ RGOnextobj
+    INC HL
+    LDA (HL), Y
+    STA BC
+    LDA A
+    STA BC+1
+    ORA BC
+    ; I don't get this code.... 
+    
+
+RGOnextobj:
+
+
+
+
+
     .org $08d1
 GetShipsPerCred:
     LDA INP2
@@ -368,14 +398,11 @@ SkipShipReset:
     LDY #$00
     JSR DrawBottomLine
 
-infiniloop:
-    LDA #$01
-    STA $20e9
-    nop
-    nop
-    nop
-
-    JMP infiniloop
+DemoLoop:
+    JSR PlrFireOrDemo
+    ;JSR PlrShotAndEdgeBump
+    ;JSR CheckPlrHit
+    JMP DemoLoop 
 
 
 
@@ -610,9 +637,6 @@ SkipDrawAlien:
     STA $2000
     RTS
 DAloffset:
-    brk
-    sei
-    nop
     LDA #$30
     CLC
     ADC DE
@@ -792,10 +816,12 @@ AddDelta:
     STA BC          ; store it in B
     INC HL          ; Go to x coordinate
     TXA             ; transfer delta-x to A
+    CLC
     ADC (HL), Y     ; add x coordinate to delta-x
     STA (HL), Y     ; and store it in x coordinate address
     INC HL          ; Go to y coordinate
     LDA BC          ; load delta-y into A
+    CLC             
     ADC (HL), Y     ; add y coordinate
     STA (HL), Y     ; and store it back to y coordinate address
     RTS             ; out
@@ -912,6 +938,9 @@ RememberShieldEntry:
 
 ShieldsOut:
     RTS
+
+
+
 
 
 
@@ -1089,12 +1118,97 @@ DrSpskip:
     STA HL
     RTS
 
+    .org $1616
 GetPlayerDataPtr:
     LDA #$00
     STA HL
     LDA $2067
     STA HL+1
     RTS
+
+PlrFireOrDemo:
+    LDY #$00
+    LDA $2015
+    CMP #$ff
+    BNE PfodOut
+    LDA #$10
+    STA HL
+    LDA #$20
+    STA HL+1
+    LDA (HL), Y
+    INC HL
+    LDA (HL), Y
+    STA BC
+    ORA BC
+    CMP #$00
+    BNE PfodOut
+    LDA $2025
+    AND $2025
+    CMP #$00
+    BNE PfodOut
+    LDA $20ef
+    AND $20ef
+    CMP #$00
+    BEQ HandleDemo
+    LDA $202d
+    AND $202d
+    CMP #$00
+    BNE WaitForBounce
+    JSR ReadInputs
+    AND #$10
+    CMP #$00
+    BEQ PfodOut
+    LDA #$01
+    STA $2025
+    STA $202d
+    RTS
+
+WaitForBounce:    
+    JSR ReadInputs
+    AND #$10
+    CMP #$00
+    BNE PfodOut
+    STA $202d
+    RTS
+
+HandleDemo:
+    LDA #$25
+    STA HL
+    LDA #$20
+    STA HL+1
+    LDA #$01
+    STA (HL), Y
+    LDA $20ed
+    STA HL
+    LDA $20ee
+    STA HL+1
+    INC HL
+    LDA HL
+    CLC
+    CMP #$7e
+    BCS HandleDemoSkip
+    LDA #$74
+    STA HL
+HandleDemoSkip: 
+    STA $20ed
+    LDA (HL), Y
+    STA $201d
+PfodOut:
+    RTS
+
+
+    .org $17c0
+ReadInputs:
+    LDA $2067
+    CLC
+    ROR
+    BCC RIskip
+    LDA INP1
+    RTS
+RIskip:
+    LDA INP2
+    RTS
+
 
 
 

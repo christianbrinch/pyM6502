@@ -19,17 +19,20 @@ SHFTY:
     .byte $00
 
     .org $00a0
+; Default input port values
 INP0:
-    .byte $00
+    .byte $0e
 INP1:
-    .byte $00
+    .byte $08
 INP2:
     .byte $00
+
 
     .org $0200
 RunGameObjs:
     LDY #$00
     LDA #$10
+RGOskipplayer:
     STA HL
     LDA #$20
     STA HL+1
@@ -47,10 +50,95 @@ RGOskipout1:
     LDA A
     STA BC+1
     ORA BC
-    ; I don't get this code.... 
-    
+    LDA BC+1
+    BNE RGOdecrement
+    INC HL
+    LDA (HL), Y
+    AND (HL), Y
+    BNE RGOnextobj
+    INC HL
+    LDA (HL), Y
+    STA DE
+    INC HL
+    LDA (HL), Y
+    STA DE+1
+    LDA HL
+    PHA
+    LDA HL+1
+    PHA
+    JSR ExDeHl
+    LDA #>RGOreturnpoint    ; This is the hardware return address
+    PHA                     ; The line after JMP (HL) 7 lines below
+    LDX #<RGOreturnpoint    ; Pushed to stack
+    DEX
+    TXA
+    PHA                     ; so that a rts will send us back here
+    LDA DE
+    PHA
+    LDA DE+1
+    PHA
+    JMP (HL)
+RGOreturnpoint:
+    PLA
+    STA HL+1
+    PLA
+    CLC
+    ADC #$0c
+    STA HL
+    JMP RGOskipplayer
+
+RGOdecrement:
+    LDA HL
+    CLC
+    ADC #$10
+    STA HL
+    JMP RGOskipplayer
 
 RGOnextobj:
+    LDA (HL), Y
+    CLC
+    SBC #$01
+    STA (HL), Y
+    DEC HL
+    DEC HL
+    JMP RGOdecrement
+
+    .org $028e ; This address is pointed to in RAM, so don't change unless RAM is changed too
+GameObj0:
+; Game object 0: Move/draw the player
+    PLA
+    PLA
+    RTS
+
+    .org $03bb ; This address is pointed to in RAM, so don't change unless RAM is changed too
+GameObj1:
+; Game object 1: Move/draw the player shot
+    PLA
+    PLA
+    RTS
+
+    .org $0476 ; This address is pointed to in RAM, so don't change unless RAM is changed too
+GameObj2:
+; Game object 2: Alien rolling-shot (targets player specifically)
+    PLA
+    PLA
+    RTS
+
+    .org $04b6 ; This address is pointed to in RAM, so don't change unless RAM is changed too
+GameObj3:
+; Game object 3: Alien plunger-shot
+; This is skipped if there is only one alien left on the screen.
+    PLA
+    PLA
+    RTS
+
+    .org $0682 ; This address is pointed to in RAM, so don't change unless RAM is changed too
+GameObj4:
+; Game object 4: Flying Saucer OR squiggly shot
+    PLA
+    PLA
+    RTS
+
 
 
 
@@ -399,10 +487,10 @@ SkipShipReset:
     JSR DrawBottomLine
 
 DemoLoop:
-    JSR PlrFireOrDemo
+    ;JSR PlrFireOrDemo
     ;JSR PlrShotAndEdgeBump
     ;JSR CheckPlrHit
-    JMP DemoLoop 
+    JMP DemoLoop
 
 
 
@@ -488,7 +576,6 @@ MGPTLskipsound:
     LDA $2032
     STA $2080
     JSR DrawAlien
-
     ;JSR RunGameObjs
     ;JSR TimeToSaucer
     NOP                 ; ***Why? this is in the original code
@@ -532,10 +619,8 @@ MidScreenInterrupt:
     ROR                     ; Are we in demo mode?
     BCC RestoreAndOut       ; No? then out
 MSIskip:
-    LDA #$20                ; Load $2020...
-    STA HL                  ; into HL
-    STA HL+1                ; ...into HL
-    ;JSR GameObjskipplayer
+    LDA #$20                ; Load $2020 ... This address is the game object table (skip player at $2010)
+    JSR RGOskipplayer       ; Process all game objects (except player object)
     JSR CursorNextAlien
     JMP RestoreAndOut
 
@@ -605,20 +690,7 @@ DrawAlien:
     LDA #$1c                ; now add $1c to high byte...
     ADC DE+1                ; ...
     STA HL+1                ; and store it in HL high-byte
-                            ; HL is now 1cxx where xx is alien type
-    LDA HL                  ; Now we need to flip DE and HL...
-    STA TMP                 ; ...
-    LDA HL+1                ; ...
-    STA TMP+1               ; ...
-    LDA DE                  ; Possibly make this a subroutine
-    STA HL                  ; ...
-    LDA DE+1                ; ...
-    STA HL+1                ; ...
-    LDA TMP                 ; ...
-    STA DE                  ; ...
-    LDA TMP+1               ; ...
-    STA DE+1                ; ... done flipping
-
+    JSR ExDeHl              ; HL is now 1cxx where xx is alien type
     LDA BC                  ; Get animation number back
     AND BC                  ; Check if it is 0...
     CMP #$00                ; or 1
@@ -821,7 +893,7 @@ AddDelta:
     STA (HL), Y     ; and store it in x coordinate address
     INC HL          ; Go to y coordinate
     LDA BC          ; load delta-y into A
-    CLC             
+    CLC
     ADC (HL), Y     ; add y coordinate
     STA (HL), Y     ; and store it back to y coordinate address
     RTS             ; out
@@ -941,7 +1013,20 @@ ShieldsOut:
 
 
 
-
+ExDeHl:
+    LDA HL                  ; Now we need to flip DE and HL...
+    STA TMP                 ; ...
+    LDA HL+1                ; ...
+    STA TMP+1               ; ...
+    LDA DE                  ; ...
+    STA HL                  ; ...
+    LDA DE+1                ; ...
+    STA HL+1                ; ...
+    LDA TMP                 ; ...
+    STA DE                  ; ...
+    LDA TMP+1               ; ...
+    STA DE+1                ; ... done flipping
+    RTS
 
 
 
@@ -1163,7 +1248,7 @@ PlrFireOrDemo:
     STA $202d
     RTS
 
-WaitForBounce:    
+WaitForBounce:
     JSR ReadInputs
     AND #$10
     CMP #$00
@@ -1189,7 +1274,7 @@ HandleDemo:
     BCS HandleDemoSkip
     LDA #$74
     STA HL
-HandleDemoSkip: 
+HandleDemoSkip:
     STA $20ed
     LDA (HL), Y
     STA $201d
@@ -1326,18 +1411,7 @@ SSnoflip:
     LDA #$20        ; into
     STA HL+1        ; HL (low byte, high byte: c520)
     JSR ReadDesc    ; Read the struct for plotting
-    LDA DE          ; Exchange DE and HL
-    STA TMP
-    LDA DE+1
-    STA TMP+1
-    LDA HL
-    STA DE
-    LDA HL+1
-    STA DE+1
-    LDA TMP
-    STA HL
-    LDA TMP+1
-    STA HL+1        ; Exchange done
+    JSR ExDeHl      ; Exchange DE and HL
     JMP DrawSprite
 
 SplSexit:
@@ -1623,8 +1697,6 @@ RemoveShip:
     JMP Bump2NumberChar
 RemSout:
     RTS
-
-
 
 
 

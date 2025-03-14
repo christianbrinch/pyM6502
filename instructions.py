@@ -16,8 +16,6 @@ class Set:
         return obj.fetch_byte()
     def get_abs(self, obj):
         return obj.read_byte(obj.fetch_word())
-    def get_abs(self, obj):
-        return obj.read_byte(obj.fetch_word())
     def get_abx(self, obj):
         return obj.read_byte(obj.fetch_word() + obj.reg_x)
     def get_aby(self, obj):

@@ -24,7 +24,7 @@ reload(instructions)
 class Memory:
     ''' Memory for the MOS-6502 '''
 
-    def __init__(self, size: int = 65536, file: str = None, address: int = 0):
+    def __init__(self, size: int = 65536, file: str = '', address: int = 0):
         ''' Initialize the memory to size. Default to 64K bytes.'''
 
         self.size = size
@@ -175,7 +175,7 @@ class Processor:
         "beq", "sbc", "nop", "isb", "nop", "sbc", "inc", "isb", "sed", "sbc", "nop", "isb", "nop", "sbc", "inc", "isb",  # F
     ]
 
-    def exec(self, cycles: int = 0, output=False, zeropage=False, mempage=False):
+    def exec(self, cycles: int = 0, output=False, zeropage=False, mempage=0):
         t = self.program_counter
         opcode = self.fetch_byte()
         tmp = [t+k for k in range(self.program_counter-t)]

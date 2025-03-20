@@ -46,11 +46,11 @@ def cpu_step():
             cpu.memory[0x0060] = cpu.memory[0x0060]*0x20
 
         if not IRQ:
-            #if cpu.program_counter == 0x0c6c:
+            #if cpu.program_counter == 0x020e:
             #    cpu.exec(output=True, zeropage=True, mempage=0x20)
             #    input()
             if not (cpu.reg_p & 0x10):
-                cpu.exec(output=True, zeropage=True, mempage=0x02)
+                cpu.exec(output=True, zeropage=True, mempage=0x20)
                 input()
             else:
                 cpu.exec(output=False)

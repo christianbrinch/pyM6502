@@ -30,14 +30,16 @@ INP2:
 
     .org $0200
 RunGameObjs:
-    LDY #$00
     LDA #$10
 RGOskipplayer:
     STA HL
     LDA #$20
     STA HL+1
+    LDY #$00
     LDA (HL), Y
     STA A
+    brk 
+    nop
     CMP #$ff
     BNE RGOskipout1
     RTS
@@ -72,7 +74,7 @@ RGOskipout1:
     LDX #<RGOreturnpoint    ; Pushed to stack
     DEX
     TXA
-    PHA                     ; so that a rts will send us back here
+    PHA                     ; so that a rts will send us back to RGOreturnpoint
     LDA DE
     PHA
     LDA DE+1
@@ -621,6 +623,7 @@ MidScreenInterrupt:
 MSIskip:
     LDA #$20                ; Load $2020 ... This address is the game object table (skip player at $2010)
     JSR RGOskipplayer       ; Process all game objects (except player object)
+    brk
     JSR CursorNextAlien
     JMP RestoreAndOut
 
@@ -727,8 +730,6 @@ CursorNextAlien:
     BNE CNAout              ; Yes? Out
     LDA $2067               ; Load playerDataMSB
     STA HL+1
-    nop
-    nop
     LDA $2006               ; Load alienCurIndex
     STA A
     LDA #$02

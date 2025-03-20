@@ -38,7 +38,7 @@ RGOskipplayer:
     LDY #$00
     LDA (HL), Y
     STA A
-    brk 
+    brk
     nop
     CMP #$ff
     BNE RGOskipout1
@@ -52,7 +52,6 @@ RGOskipout1:
     LDA A
     STA BC+1
     ORA BC
-    LDA BC+1
     BNE RGOdecrement
     INC HL
     LDA (HL), Y

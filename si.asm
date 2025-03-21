@@ -38,8 +38,6 @@ RGOskipplayer:
     LDY #$00
     LDA (HL), Y
     STA A
-    brk
-    nop
     CMP #$ff
     BNE RGOskipout1
     RTS
@@ -49,14 +47,12 @@ RGOskipout1:
     INC HL
     LDA (HL), Y
     STA BC
-    LDA A
-    STA BC+1
-    ORA BC
+    ORA A
     BNE RGOdecrement
     INC HL
     LDA (HL), Y
     AND (HL), Y
-    BNE RGOnextobj
+    BNE RGOnexttask
     INC HL
     LDA (HL), Y
     STA DE
@@ -70,9 +66,10 @@ RGOskipout1:
     JSR ExDeHl
     LDA #>RGOreturnpoint    ; This is the hardware return address
     PHA                     ; The line after JMP (HL) 7 lines below
-    LDX #<RGOreturnpoint    ; Pushed to stack
-    DEX
-    TXA
+    LDY #<RGOreturnpoint    ; Pushed to stack
+    DEY
+    TYA
+    LDY #$00
     PHA                     ; so that a rts will send us back to RGOreturnpoint
     LDA DE
     PHA
@@ -83,19 +80,34 @@ RGOreturnpoint:
     PLA
     STA HL+1
     PLA
+    RTS
     CLC
     ADC #$0c
     STA HL
     JMP RGOskipplayer
 
 RGOdecrement:
+    DEC BC
+    INC BC
+    CMP #$00
+    BNE RGOdecskip
+    DEC A
+RGOdecskip:
+    DEC BC
+    LDA BC
+    STA (HL), Y
+    DEC HL
+    LDA A
+    STA (HL), Y
+
+RGOnextobj:
     LDA HL
     CLC
     ADC #$10
     STA HL
     JMP RGOskipplayer
 
-RGOnextobj:
+RGOnexttask:
     LDA (HL), Y
     CLC
     SBC #$01
@@ -108,8 +120,109 @@ RGOnextobj:
 GameObj0:
 ; Game object 0: Move/draw the player
     PLA
+    STA HL+1
     PLA
+    STA HL
+    INC HL
+    LDA (HL), Y
+    CMP #$ff
+    BEQ GO0normalmovement
+    ; Handle blowing up player here
+    ; Blow up finished here
+GO0normalmovement:
+    ; Player not blowing up... handle inputs
+    LDA #$68
+    STA HL
+    LDA #$20
+    STA HL+1
+    LDA #$01
+    STA (HL), Y
+    INC HL
+    LDA (HL), Y
+    AND (HL), Y
+    CMP #$00
+    JMP GO0enableshots
+
+GO0346:
+    NOP     ; why?
+    DEC HL
+    LDA #$01
+    STA (HL), Y
+
+GO034a:
+    LDA $201b
+    STA BC
+    LDA $20ef
+    AND $20ef
+    CMP #$00
+    BNE GO0363
+    LDA $201d
+    CLC
+    ROR
+    BCS MovePlayerRight
+    ROR
+    BCS MovePlayerLeft
+    JMP GO0DrawPlayerSprite
+GO0363:
+    JSR ReadInputs
+    CLC
+    ROR
+    ROR
+    BCS MovePlayerRight
+    ROR
+    BCS MovePlayerLeft
+
+GO0DrawPlayerSprite:
+    LDA #$18
+    STA HL
+    LDA #$20
+    STA HL+1
+    JSR ReadDesc
+    JSR ConvToScr
+    JSR DrawSimpSprite
+    LDA #$00
+    STA $2012
     RTS
+
+MovePlayerRight:
+    LDA BC
+    CMP #$d9
+    BEQ GO0DrawPlayerSprite
+    STA A
+    INC A
+    LDA A
+    STA $201b
+    JMP GO0DrawPlayerSprite
+
+MovePlayerLeft:
+    LDA BC
+    CMP #$30
+    BEQ GO0DrawPlayerSprite
+    STA A
+    DEC A
+    LDA A
+    STA $201b
+    JMP GO0DrawPlayerSprite
+
+
+
+DrawPlayerDie:
+
+GO0enableshots:
+    BNE GO034a
+    INC HL
+    LDA (HL), Y
+    STA A
+    DEC A
+    LDA A
+    STA (HL), Y
+    CMP #$00
+    BNE GO034a
+    JMP GO0346
+
+
+
+
 
     .org $03bb ; This address is pointed to in RAM, so don't change unless RAM is changed too
 GameObj1:
@@ -577,7 +690,7 @@ MGPTLskipsound:
     LDA $2032
     STA $2080
     JSR DrawAlien
-    ;JSR RunGameObjs
+    JSR RunGameObjs
     ;JSR TimeToSaucer
     NOP                 ; ***Why? this is in the original code
 
@@ -622,7 +735,6 @@ MidScreenInterrupt:
 MSIskip:
     LDA #$20                ; Load $2020 ... This address is the game object table (skip player at $2010)
     JSR RGOskipplayer       ; Process all game objects (except player object)
-    brk
     JSR CursorNextAlien
     JMP RestoreAndOut
 
@@ -1736,7 +1848,7 @@ MessagePlayUY:
 ;-------------------------- RAM initialization -----------------------------
 ; Coppied to RAM (2000) C0 bytes as initialization.
     .byte $01, $00, $00, $10, $00, $00, $00, $00, $02, $78, $38, $78, $38, $00, $F8, $00
-    .byte $00, $80, $00, $8E, $02, $FF, $05, $0C, $60, $1C, $20, $30, $10, $01, $00, $00
+    .byte $00, $80, $00, $8e, $02, $FF, $05, $0C, $60, $1C, $20, $30, $10, $01, $00, $00
     .byte $00, $00, $00, $BB, $03, $00, $10, $90, $1C, $28, $30, $01, $04, $00, $FF, $FF
     .byte $00, $00, $02, $76, $04, $00, $00, $00, $00, $00, $04, $EE, $1C, $00, $00, $03
     .byte $00, $00, $00, $B6, $04, $00, $00, $01, $00, $1D, $04, $E2, $1C, $00, $00, $03

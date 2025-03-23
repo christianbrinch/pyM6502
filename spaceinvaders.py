@@ -52,7 +52,7 @@ def cpu_step():
             if not (cpu.reg_p & 0x10):
                 cpu.exec(output=True, zeropage=True, mempage=0x20)
                 input()
-
+                cpu.reg_p += 0x10
             else:
                 cpu.exec(output=False)
 

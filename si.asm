@@ -173,12 +173,14 @@ GO0363:
     BCS MovePlayerLeft
 
 GO0DrawPlayerSprite:
+    brk
     LDA #$18
     STA HL
     LDA #$20
     STA HL+1
     JSR ReadDesc
     JSR ConvToScr
+    LDX #$10
     JSR DrawSimpSprite
     LDA #$00
     STA $2012

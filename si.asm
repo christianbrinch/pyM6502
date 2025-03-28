@@ -173,7 +173,6 @@ GO0363:
     BCS MovePlayerLeft
 
 GO0DrawPlayerSprite:
-    brk
     LDA #$18
     STA HL
     LDA #$20
@@ -603,7 +602,7 @@ SkipShipReset:
     JSR DrawBottomLine
 
 DemoLoop:
-    ;JSR PlrFireOrDemo
+    JSR PlrFireOrDemo
     ;JSR PlrShotAndEdgeBump
     ;JSR CheckPlrHit
     JMP DemoLoop
@@ -1370,6 +1369,9 @@ WaitForBounce:
     STA $202d
     RTS
 
+PfodOut:
+    RTS
+
 HandleDemo:
     LDA #$25
     STA HL
@@ -1383,18 +1385,15 @@ HandleDemo:
     STA HL+1
     INC HL
     LDA HL
-    CLC
-    CMP #$7e
-    BCS HandleDemoSkip
+    CMP #$7f
+    BNE HandleDemoSkip
     LDA #$74
     STA HL
 HandleDemoSkip:
     STA $20ed
     LDA (HL), Y
     STA $201d
-PfodOut:
     RTS
-
 
     .org $17c0
 ReadInputs:
@@ -1996,6 +1995,10 @@ Characters:
 
     .byte $00, $22, $14, $7F, $14, $22, $00, $00
     .byte $00, $03, $04, $78, $04, $03, $00, $00
+
+    .org $1f74
+; Demo commands
+    .byte $01, $01, $00, $00, $01, $00, $02, $01, $00, $02, $01, $00
 
     .org $1f80
 ; small alien bringing y - animation 1

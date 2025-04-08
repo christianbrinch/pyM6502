@@ -228,18 +228,214 @@ GO0enableshots:
     .org $03bb ; This address is pointed to in RAM, so don't change unless RAM is changed too
 GameObj1:
 ; Game object 1: Move/draw the player shot
+    LDA $202a
+    STA DE
+    JSR CompYToBeam
     PLA
+    STA HL+1
     PLA
+    STA HL
+    BCS GO1skip
+    RTS
+GO1skip:
+    INC HL
+    LDA (HL), Y
+    STA A
+    AND A
+    BNE GO1skip2
+    RTS
+GO1skip2:
+    CMP #$01
+    BEQ InitPlyShot
+
+    CMP #$02
+    BEQ MovePlyShot
+
+    INC HL
+    CMP #$03
+    BNE GO1otheroptstramp
+
+    LDA (HL), Y
+    CLC
+    SBC #$01
+    STA (HL), Y
+    CPX #$00
+    BEQ EndOfBlowuptramp
+    TXA
+    CMP #$0f
+    BEQ GO1skip3
     RTS
 
-    .org $0476 ; This address is pointed to in RAM, so don't change unless RAM is changed too
+GO1otheroptstramp:
+    JMP GO1otheropts
+
+EndOfBlowuptramp:
+    JMP EndOfBlowup
+
+GO1skip3:
+; Draw explosion
+    LDA HL
+    PHA
+    LDA HL+1
+    PHA
+    JSR ReadPlyShot
+    JSR EraseShifted
+    PLA
+    STA HL+1
+    PLA
+    STA HL
+    INC HL
+    LDA (HL), Y
+    CLC
+    ADC #$01
+    STA (HL), Y
+    INC HL
+    INC HL
+    LDA (HL), Y
+    CLC
+    SBC #$02
+    STA (HL), Y
+    INC HL
+    LDA (HL), Y
+    CLC
+    ADC #$03
+    STA (HL), Y
+    INC HL
+    LDA #$08
+    STA (HL), Y
+    JSR ReadPlyShot
+    JMP DrawShiftedSprite
+
+InitPlyShot:
+    CLC
+    ADC #$01
+    STA (HL), Y
+    LDA $201b
+    ADC #$08
+    STA $202a
+    JSR ReadPlyShot
+    JMP DrawShiftedSprite
+
+MovePlyShot:
+    JSR ReadPlyShot
+    LDA DE
+    PHA
+    LDA DE+1
+    PHA
+    LDA HL
+    PHA
+    LDA HL+1
+    PHA
+    LDA BC
+    PHA
+    LDA BC+1
+    PHA
+    JSR EraseShifted
+    PLA
+    STA BC+1
+    PLA
+    STA BC
+    PLA
+    STA HL+1
+    PLA
+    STA HL
+    PLA
+    STA DE+1
+    PLA
+    STA DE
+    LDA $202c
+    CLC
+    ADC HL
+    STA HL
+    STA $2029
+    JSR DrawSprCollision
+    LDA $2061
+    AND $2061
+    BNE GO1skip4
+    RTS
+GO1skip4:
+    STA $2002
+    RTS
+
+GO1otheropts:
+    CMP #$05
+    BNE GO1skip5
+    RTS
+GO1skip5:
+    JMP EndOfBlowup
+
+ReadPlyShot:
+    LDA #$27
+    STA HL
+    LDA #$20
+    STA HL+1
+    JMP ReadDesc
+
+EndOfBlowup:
+    JSR ReadPlyShot
+    JSR EraseShifted
+    LDA #$25
+    STA HL
+    LDA #$20
+    STA HL+1
+    LDA #$25
+    STA DE
+    LDA #$1b
+    STA DE+1
+    LDY #$00
+    LDX #$07
+    JSR BlockCopy
+    LDA $208d
+    STA HL
+    INC HL
+    LDA HL
+    CMP #$63
+    BCS GO1skip6
+    LDA #$54
+    STA HL
+GO1skip6:
+    STA $208d
+    LDX $208f
+    INX
+    STX $208f
+    LDA $2084
+    AND $2084
+    BEQ GO1skip7
+    RTS
+GO1skip7:
+    LDA (HL), Y
+    AND #$01
+    LDX $29
+    STX BC
+    LDX $02
+    STX BC+1
+    BNE GO1skip8
+    LDX #$e0
+    STX BC
+    LDX #$fe
+    STX BC+1
+GO1skip8:
+    LDX #$8a
+    STX HL
+    LDX #$20
+    STX HL+1
+    LDA BC+1
+    STA (HL), Y
+    INC HL
+    INC HL
+    LDA BC
+    STA (HL), Y
+    RTS
+
+
+    .org $050f ;was 476 ; This address is pointed to in RAM, so don't change unless RAM is changed too
 GameObj2:
 ; Game object 2: Alien rolling-shot (targets player specifically)
     PLA
     PLA
     RTS
 
-    .org $04b6 ; This address is pointed to in RAM, so don't change unless RAM is changed too
+    .org $0513 ; was $04b6 ; This address is pointed to in RAM, so don't change unless RAM is changed too
 GameObj3:
 ; Game object 3: Alien plunger-shot
 ; This is skipped if there is only one alien left on the screen.
@@ -665,6 +861,8 @@ ScanLine224:
     LDA BC+1
     PHA
 
+    LDA #$80        ; Set vblankstatus
+    STA $2072       ; to 0x80
     DEC $20c0       ; Decrement general delay counter
     ; coin stuff goes here (0x0020 - 0x0041)
     LDA $20e9
@@ -887,19 +1085,19 @@ GetAlienCoords:
     LDA HL          ; Put L...
     STA A           ; ...into A (A is now Alien index)
     LDA $2009       ; Load content of $2009 (alien X)...
-    STA BC+1          ; ...and put it in B
+    STA BC+1        ; ...and put it in B
     LDA $200a       ; Increment address (Alien Y)...
-    STA BC        ; ...and put it in C (BC is XY)
+    STA BC          ; ...and put it in C (BC is XY)
 GACloop:
     LDA A
     CMP #$0b        ; Compare A to 11 (full row)
     BMI GACskip     ; If negative, row is found
     SBC #$0b        ; otherwise, subtract 11
     STA DE+1        ; Put A in E
-    LDA BC+1          ; Add...
+    LDA BC+1        ; Add...
     CLC
     ADC #$10        ; 16...
-    STA BC+1          ; to Alien X
+    STA BC+1        ; to Alien X
     LDA DE+1        ; Restore A
     STA A           ; Put A on hold
     INC DE          ; Increment D to go to next row
@@ -1279,16 +1477,7 @@ DrSploop:
     LDA HL+1            ; and
     PHA                 ; push to stack
     LDA (DE), Y         ; Load sprite from DE
-
-    LDA HL              ; This part is not
-    CLC                 ; in the original
-    ADC SHFTAMNT        ; SI code, but
-    STA HL              ; it mimicks
-    BCC teskip          ; hardware shift of sprites
-    INC HL+1            ; to achieve smooth scrolling
-teskip:                 ; Until here.
-    LDA (DE),Y
-    STA (HL), Y
+    STA (HL), Y         ; Store sprite to HL
 
     INC HL              ; This is the part of the
     INC DE              ; original shift code
@@ -1545,7 +1734,7 @@ init:
 
 
 
-    .org $1900
+    .org $18f0
 DrawScoreHead:
     LDX #$1c
     LDA #$1e
@@ -1662,6 +1851,20 @@ ClearRemainderOfLine:
     BNE ClearRemainderOfLine
     RTS
 
+CompYToBeam:
+    CLC
+    LDA $2072
+    STA TMP
+    LDA (DE), Y
+    AND #$80
+    EOR TMP
+    BNE CYTBout
+    SEC
+CYTBout:
+    RTS
+
+
+
 
 
 BlockCopy:
@@ -1710,6 +1913,7 @@ ConvToScr:
 ; and set the third bit from the left.; Convert pixel number in HL to screen coordinate
     LDX #$03
 CTSloop:
+    CLC
     LDA HL+1
     ROR
     STA HL+1
@@ -1851,7 +2055,7 @@ MessagePlayUY:
     .byte $01, $00, $00, $10, $00, $00, $00, $00, $02, $78, $38, $78, $38, $00, $F8, $00
     .byte $00, $80, $00, $8e, $02, $FF, $05, $0C, $60, $1C, $20, $30, $10, $01, $00, $00
     .byte $00, $00, $00, $BB, $03, $00, $10, $90, $1C, $28, $30, $01, $04, $00, $FF, $FF
-    .byte $00, $00, $02, $76, $04, $00, $00, $00, $00, $00, $04, $EE, $1C, $00, $00, $03
+    .byte $00, $00, $02, $0f, $05, $00, $00, $00, $00, $00, $04, $EE, $1C, $00, $00, $03
     .byte $00, $00, $00, $B6, $04, $00, $00, $01, $00, $1D, $04, $E2, $1C, $00, $00, $03
     .byte $00, $00, $00, $82, $06, $00, $00, $01, $06, $1D, $04, $D0, $1C, $00, $00, $03
     .byte $FF, $00, $C0, $1C, $00, $00, $10, $21, $01, $00, $30, $00, $12, $00, $00, $00

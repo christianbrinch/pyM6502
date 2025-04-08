@@ -193,14 +193,16 @@ class Set:
         ''' Rotate bits to the right '''
         if mode == 'acc':
             value = obj.reg_a
+            carry = obj.reg_p & 0x01           # Hold carry
             obj.toggle(0, value & 0x01)        # toogle C
-            value = (value >> 1) | (obj.reg_p & 0x01) * 0x80
+            value = (value >> 1) | carry * 0x80
             obj.reg_a = value
         else:
             value = eval("self.get_"+mode+"(obj)")
+            carry = obj.reg_p & 0x01           # Hold carry
             obj.toggle(0, value & 0x01)        # toogle C
             addr = eval("self.put_"+mode+"(obj)")
-            value = (value >> 1) | (obj.reg_p & 0x01) * 0x80
+            value = (value >> 1) | carry * 0x80
             obj.write_byte(addr, value)
         obj.toggle(1, not value)        # toogle Z
         obj.toggle(7, value & 0x80)     # toogle N

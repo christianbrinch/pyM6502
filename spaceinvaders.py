@@ -43,7 +43,9 @@ def cpu_step():
     while run:
         # Emulate shift register
         if 8>cpu.memory[0x0060]>0:
-            cpu.memory[0x0060] = cpu.memory[0x0060]*0x20
+            tmp = cpu.memory[0x0062]
+            cpu.memory[0x0062] = cpu.memory[0x0061]
+            cpu.memory[0x0061] = ((tmp << cpu.memory[0x0060]) & 0xff) | ((cpu.memory[0x0062] >> (8-cpu.memory[0x0060])) & 0b111)
 
         if not IRQ:
             #if cpu.program_counter == 0x020e:

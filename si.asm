@@ -1341,7 +1341,54 @@ ExDeHl:
 
 
 
-    .org $1424
+    .org $1300
+DrawShiftedSprite:
+    NOP
+    JSR CnvtPixNumber
+    NOP
+DShSloop:
+    LDA HL
+    PHA
+    LDA HL+1
+    PHA
+    LDA (DE),Y
+    STA SHFTX
+    LDA SHFTX
+    STA A
+    LDA (HL), Y
+    ORA A
+    STA (HL), Y
+    INC HL
+    INC DE
+    LDA #$00
+    STA SHFTX
+    LDA SHFTX
+    STA A
+    LDA (HL), Y
+    ORA A
+    STA (HL), Y
+    PLA
+    STA HL+1
+    PLA
+    STA HL
+    LDA #$20
+    CLC
+    ADC HL
+    STA HL
+    BCC DShSskip
+    INC HL+1
+DShSskip:
+    DEC BC
+    BNE DShSloop
+    LDA #$00
+    STA SHFTAMNT
+    STA SHFTX
+    STA SHFTY
+    RTS
+
+
+
+
 EraseSimpleSprite:
     LDY #$00
     JSR CnvtPixNumber
@@ -1398,6 +1445,52 @@ DSSskip:
     BNE DSSloop
     RTS
 
+
+EraseShifted:
+    JSR CnvtPixNumber
+EShSloop:
+    LDA HL
+    PHA
+    LDA HL+1
+    PHA
+    LDA (DE),Y
+    STA SHFTX
+    LDA SHFTX
+    EOR #$ff
+    STA A
+    LDA (HL), Y
+    AND A
+    STA (HL), Y
+    INC HL
+    INC DE
+    LDA #$00
+    STA SHFTX
+    LDA SHFTX
+    EOR #$ff
+    STA A
+    LDA (HL), Y
+    AND A
+    STA (HL), Y
+    PLA
+    STA HL+1
+    PLA
+    STA HL
+    LDA #$20
+    CLC
+    ADC HL
+    STA HL
+    BCC EShSskip
+    INC HL+1
+EShSskip:
+    DEC BC
+    BNE EShSloop
+    LDA #$00
+    STA SHFTAMNT
+    STA SHFTX
+    STA SHFTY
+    RTS
+
+
 CnvtPixNumber:
 ; Convert pixel number in HL to screen coordinate and shift amount.
 ; HL gets screen coordinate.
@@ -1405,6 +1498,62 @@ CnvtPixNumber:
     AND #$07
     STA SHFTAMNT
     JMP ConvToScr
+
+DrawSprCollision:
+    JSR CnvtPixNumber
+    LDA #$00
+    STA $2061
+DSCloop:
+    LDA HL
+    PHA
+    LDA HL+1
+    PHA
+    LDA (DE), Y
+    STA SHFTX
+    LDA SHFTX
+    STA A
+    LDA (HL), Y
+    AND A
+    BEQ DSCskip
+    LDA #$01
+    STA $2061
+DSCskip:
+    LDA (HL),Y
+    ORA A
+    STA (HL), Y
+    INC HL
+    INC DE
+    LDA #$00
+    STA SHFTX
+    LDA SHFTX
+    STA A
+    LDA (HL), Y
+    AND A
+    BEQ DSCskip2
+    LDA #$01
+    STA $2061
+DSCskip2:
+    LDA (HL), Y
+    ORA A
+    STA (HL), Y
+    PLA
+    STA HL+1
+    PLA
+    STA HL
+    CLC
+    LDA #$20
+    ADC HL
+    STA HL
+    BCC DSCskip3
+    INC HL+1
+DSCskip3:
+    DEC BC
+    BNE DSCloop
+    LDA #$00
+    STA SHFTAMNT
+    STA SHFTX
+    STA SHFTY
+    RTS
 
 ClearSmallSprite:
 ; Clear a one byte sprite at HL. B=number of rows.

@@ -13,6 +13,8 @@ TMP:
     .org $0060
 SHFTAMNT:
     .byte $00
+SHFTIN:
+    .byte $00
 SHFTX:
     .byte $00
 SHFTY:
@@ -295,13 +297,13 @@ GO1skip3:
     INC HL
     INC HL
     LDA (HL), Y
-    CLC
+    SEC
     SBC #$02
     STA (HL), Y
     INC HL
     LDA (HL), Y
-    CLC
-    ADC #$03
+    SEC
+    SBC #$03
     STA (HL), Y
     INC HL
     LDA #$08
@@ -1355,7 +1357,7 @@ DShSloop:
     LDA HL+1
     PHA
     LDA (DE),Y
-    STA SHFTX
+    STA SHFTIN
     LDA SHFTX
     STA A
     LDA (HL), Y
@@ -1363,9 +1365,9 @@ DShSloop:
     STA (HL), Y
     INC HL
     INC DE
-    LDA #$00
-    STA SHFTX
-    LDA SHFTX
+    ;LDA #$00
+    ;STA SHFTX
+    LDA SHFTY
     STA A
     LDA (HL), Y
     ORA A
@@ -1383,10 +1385,6 @@ DShSloop:
 DShSskip:
     DEC BC
     BNE DShSloop
-    LDA #$00
-    STA SHFTAMNT
-    STA SHFTX
-    STA SHFTY
     RTS
 
 
@@ -1457,7 +1455,7 @@ EShSloop:
     LDA HL+1
     PHA
     LDA (DE),Y
-    STA SHFTX
+    STA SHFTIN
     LDA SHFTX
     EOR #$ff
     STA A
@@ -1466,9 +1464,9 @@ EShSloop:
     STA (HL), Y
     INC HL
     INC DE
-    LDA #$00
-    STA SHFTX
-    LDA SHFTX
+    ;LDA #$00
+    ;STA SHFTX
+    LDA SHFTY
     EOR #$ff
     STA A
     LDA (HL), Y
@@ -1487,10 +1485,6 @@ EShSloop:
 EShSskip:
     DEC BC
     BNE EShSloop
-    LDA #$00
-    STA SHFTAMNT
-    STA SHFTX
-    STA SHFTY
     RTS
 
 
@@ -1512,7 +1506,7 @@ DSCloop:
     LDA HL+1
     PHA
     LDA (DE), Y
-    STA SHFTX
+    STA SHFTIN
     LDA SHFTX
     STA A
     LDA (HL), Y
@@ -1526,9 +1520,9 @@ DSCskip:
     STA (HL), Y
     INC HL
     INC DE
-    LDA #$00
-    STA SHFTX
-    LDA SHFTX
+    ;LDA #$00
+    ;STA SHFTX
+    LDA SHFTY
     STA A
     LDA (HL), Y
     AND A
@@ -1552,10 +1546,6 @@ DSCskip2:
 DSCskip3:
     DEC BC
     BNE DSCloop
-    LDA #$00
-    STA SHFTAMNT
-    STA SHFTX
-    STA SHFTY
     RTS
 
 ClearSmallSprite:
@@ -1685,16 +1675,14 @@ DrSploop:
     LDA HL+1            ; and
     PHA                 ; push to stack
     LDA (DE), Y         ; Load sprite from DE
-    STA SHFTX
-    LDA SHFTX
+    ;STA SHFTIN
+    ;LDA SHFTX
     STA (HL), Y         ; Store sprite to HL
 
     INC HL              ; This is the part of the
     INC DE              ; original shift code
 
-    LDA #$00
-    STA SHFTX
-    LDA SHFTX
+    ;LDA SHFTY
 
     PLA
     STA HL+1

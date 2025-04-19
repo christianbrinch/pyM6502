@@ -45,7 +45,7 @@ def cpu_step():
         if 8>cpu.memory[0x0060]>0:
             tmp = cpu.memory[0x0062]
             cpu.memory[0x0062] = cpu.memory[0x0061]
-            cpu.memory[0x0061] = ((tmp << cpu.memory[0x0060]) & 0xff) | ((cpu.memory[0x0062] >> (8-cpu.memory[0x0060])) & 0b111)
+            cpu.memory[0x0061] = (cpu.memory[0x0062]<<cpu.memory[0x0060]) & 0xff
 
         if not IRQ:
             #if cpu.program_counter == 0x020e:
@@ -54,7 +54,8 @@ def cpu_step():
             if not (cpu.reg_p & 0x10):
                 cpu.exec(output=True, zeropage=True, mempage=0x20)
                 input()
-                #cpu.reg_p += 0x10
+                cpu.reg_p += 0x10
+
             else:
                 cpu.exec(output=False)
 

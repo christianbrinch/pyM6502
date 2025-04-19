@@ -251,13 +251,16 @@ GO1skip2:
     CMP #$02
     BEQ MovePlyShot
 
+
     INC HL
     CMP #$03
     BNE GO1otheroptstramp
 
+
     LDA (HL), Y
-    CLC
-    SBC #$01
+    TAX
+    DEX
+    TXA
     STA (HL), Y
     CPX #$00
     BEQ EndOfBlowuptramp
@@ -697,7 +700,7 @@ SplashSpriteTrampoline:
 
 
 SplashScreenloop:
-    LDA #$01        ; for
+    LDA #$01       ; for
     STA $20ec       ; debugging
     ;LDA #$02        ; purposes
     ;STA $20c1       ; only
@@ -726,10 +729,10 @@ SplashScreenloop:
     LDA #$1d
     STA DE+1
 OBE8return:
-    JSR PrintNearMidscreen
-    JSR OneSecDelay
-    JSR DrawAdvTable
-    JSR TwoSecDelay
+    ;JSR PrintNearMidscreen ; uncomment when done debugging
+    ;JSR OneSecDelay        ;
+    ;JSR DrawAdvTable       ;
+    ;JSR TwoSecDelay        ; all of this
     LDA $20ec   ; Load splashAnimate into A
     AND $20ec   ; Set flags based on type
     CMP #$00
@@ -799,7 +802,7 @@ SkipShipReset:
 
 DemoLoop:
     JSR PlrFireOrDemo
-    ;JSR PlrShotAndEdgeBump
+    JSR PlrShotAndEdgeBump
     ;JSR CheckPlrHit
     JMP DemoLoop
 
@@ -1494,7 +1497,7 @@ EShSskip:
 CnvtPixNumber:
 ; Convert pixel number in HL to screen coordinate and shift amount.
 ; HL gets screen coordinate.
-    LDA HL+1
+    LDA HL
     AND #$07
     STA SHFTAMNT
     JMP ConvToScr
@@ -1574,15 +1577,59 @@ CSSskip:
     BNE CSSloop
     RTS
 
-
-ShiftSprite:
-    LDY SHFTAMNT
-ShfSloop:
-    ASL SHFTX
-    ROR SHFTY
-    DEY
-    BNE ShfSloop
+    .org $14d8
+PlayerShotHit:
+; The player's shot hit something (or is being removed from play)
+    LDA $2025   ; load player shot status
+    CMP #$05    ; Alien explosion in progress?
+    BNE PSHskip1
+    RTS         ; yes ... then return
+PSHskip1:
+    CMP #$02    ; Normal shot movement?
+    BEQ PSHskip2
+    RTS         ; no ... return
+PSHskip2:
+    LDA $2029   ; Load Y coord of player shot
+    CLC
+    CMP #$d8    ; compare to 216 (40 from the top)
+    STA A       ; save for later
+    BCS ShotLeaving
+    LDA $2002   ; Is an alien...
+    AND $2002   ; ...blowing up?
+    CMP #$00
+    BNE PSHskip3 ; No? then leave.
     RTS
+PSHskip3:
+    LDA A       ; restore original y coordinate
+    CLC
+    CMP #$ce    ; compare to 206 (50 from top)
+    BCS PSHskip4
+    JMP MarkSaucerHit
+PSHskip4:
+    ADC #$06    ; offset coordinate for explosion
+    STA A       ; Hold value
+    LDA $2009   ; Ref alien y coordinate
+
+; If the lower 4 rows are all empty then the reference alien's Y coordinate will wrap around from 0 to F8.
+; At this point the top row of aliens is in the shields and we will assume that everything is within
+; the rack.
+
+    CLC
+    CMP #$90        ; if this is true,
+    BCS PSHskip5    ; ...aliens are in the shields
+    JMP CodeBug1
+PSHskip5:
+    CMP A
+    BCC ShotLeaving
+
+CodeBug1:
+    RTS
+
+    .org $152d
+ShotLeaving:
+    LDA #$03
+    STA $2025
+    JMP AETout2
 
     .org $1538
 AExplodeTime:
@@ -1593,7 +1640,9 @@ AExplodeTime:
     LDA #$20
     STA HL+1
     LDA (HL), Y
-    SBC #$01
+    TAX
+    DEX
+    TXA
     STA (HL), Y
     CMP #$00
     BEQ AExplodeDone
@@ -1601,16 +1650,26 @@ AExplodeTime:
     STA HL
     LDX #$10
     JSR EraseSimpleSprite
+AETout1:
     LDA #$04
     STA $2025
-    AND $2025
-    STA $2002
-    LDX #$f7
+AETout2:
+    LDA #$00            ; turn off...
+    STA $2002           ; alien-is-exploding flag
+    ;LDX #$f7
     ;JMP SoundBits3Off
 AExplodeDone:
     RTS
 
+    .org $1579
+MarkSaucerHit:
+    LDA #$01
+    STA $2085
+    JMP AETout1
 
+    .org $1597
+RackBump:
+    RTS
 
     .org $15d3
 DrawSprite:
@@ -1626,14 +1685,17 @@ DrSploop:
     LDA HL+1            ; and
     PHA                 ; push to stack
     LDA (DE), Y         ; Load sprite from DE
+    STA SHFTX
+    LDA SHFTX
     STA (HL), Y         ; Store sprite to HL
 
     INC HL              ; This is the part of the
     INC DE              ; original shift code
-;    LDA #$00           ; which needs to be fixed
-;    STA SHFTY          ; once we do shots.
-;    LDA SHFTX
-;    STA (HL), Y
+
+    LDA #$00
+    STA SHFTX
+    LDA SHFTX
+
     PLA
     STA HL+1
     PLA
@@ -1880,10 +1942,11 @@ init:
     STA $20cf                   ; ...into aShotReloadRate variable
     JMP SplashScreenloop        ; Jump to top of splash screen loop
 
-
-
-
     .org $18f0
+PlrShotAndEdgeBump:
+    JSR PlayerShotHit
+    JMP RackBump
+
 DrawScoreHead:
     LDX #$1c
     LDA #$1e
@@ -2183,20 +2246,6 @@ RemSout:
     .byte $3F, $12, $02, $0E, $11, $04, $26, $12, $02, $0E, $11, $04
     .byte $24, $1C, $25, $26
 
-    .org $1c99
-Message10Pts:
-    ; Ran out of space at 1DFE
-    .byte $27, $1B, $1A, $26, $0F, $0E, $08, $0D, $13, $12    ; "=10 POINTS"
-
-MessageAdv:
-    .byte $28, $12, $02, $0E, $11, $04, $26, $00
-    .byte $03, $15, $00, $0D, $02, $04, $26, $13
-    .byte $00, $01, $0B, $04, $28
-
-
-    .org $1cfa
-MessagePlayUY:
-    .byte $0F, $0B, $00, $29    ; "PLAy" with an upside down 'Y' for splash screen
 
     .org $1b00
 ;-------------------------- RAM initialization -----------------------------
@@ -2250,6 +2299,29 @@ PlayerSprite:
 PlrBlowupSprites:
     .byte $00, $04, $01, $13, $03, $07, $B3, $0F, $2F, $03, $2F, $49, $04, $03, $00, $01
     .byte $40, $08, $05, $A3, $0A, $03, $5B, $0F, $27, $27, $0B, $4B, $40, $84, $11, $48
+
+PlayerShotSpr:
+    .byte $0f
+
+ShotExploding:
+    .byte $99, $3c, $7e, $3d, $bc, $3e, $7c, $99
+
+Message10Pts:
+    ; Ran out of space at 1DFE
+    .byte $27, $1B, $1A, $26, $0F, $0E, $08, $0D, $13, $12    ; "=10 POINTS"
+
+MessageAdv:
+    .byte $28, $12, $02, $0E, $11, $04, $26, $00
+    .byte $03, $15, $00, $0D, $02, $04, $26, $13
+    .byte $00, $01, $0B, $04, $28
+
+
+    .org $1cfa
+MessagePlayUY:
+    .byte $0F, $0B, $00, $29    ; "PLAy" with an upside down 'Y' for splash screen
+
+
+
 
     .org $1d20
 ShieldImage:

@@ -1659,9 +1659,65 @@ MarkSaucerHit:
 
     .org $1597
 RackBump:
+; When rack bumps the edge of the screen then the direction flips and the rack
+; drops 8 pixels. The deltaX and deltaY values are changed here. Interestingly
+; if there is only one alien left then the right value is 3 instead of the
+; usual 2. The left direction is always -2.
+    LDY #$00
+    LDA $200d           ; load rack direction
+    AND $200d           ; Moving right?
+    BNE RBleft          ; No? then we are moving left
+    LDA #$3e            ; Load
+    STA HL+1            ; right edge
+    LDA #$a4            ; into
+    STA HL              ; HL
+    CLC
+    JSR CheckEdge       ; Check the right edge
+    BCC RBnoout
+    RTS
+RBnoout:
+    brk
+    LDA #$fe            ; delta-x = -2
+    STA $2008           ; ...store in refAlienDXr
+    LDA #$01            ; Moving right
+RBsetvars:
+    STA $200d           ; ...store in rackdirection
+    LDA $200e           ; load rackDownDelta (-8)
+    STA $2007           ; ...store in refAlienDYr
+    RTS
+RBleft:
+    LDA #$25            ; Load
+    STA HL+1            ; left edge
+    LDA #$24            ; into
+    STA HL              ; HL
+    CLC
+    JSR CheckEdge       ; Check the left edge
+    BCC RBnoout2
+    RTS
+RBnoout2:
+    JSR RightDeltX      ; Get the rigth moving delta x (normal 2, one alien left 3)
+    STA $2008
+    LDA #$00
+    JMP RBsetvars
+;
+CheckEdge:
+    LDA #$17
+    STA BC
+CEloop:
+    LDA (HL), Y
+    STA A
+    AND A
+    BEQ CEskip
+    JMP SetCarryAndOut
+CEskip:
+    INC HL
+    DEC BC
+    LDA BC
+    CMP #$00
+    BNE CEloop
     RTS
 
-    .org $15d3
+
 DrawSprite:
     JSR CnvtPixNumber   ; I assume that this works.
     LDY #$00            ; Clear Y
@@ -1704,7 +1760,7 @@ DrSpskip:
     STA HL
     RTS
 
-    .org $1616
+
 GetPlayerDataPtr:
     LDA #$00
     STA HL
@@ -1783,6 +1839,11 @@ HandleDemoSkip:
     STA $201d
     RTS
 
+; $166b in original code
+SetCarryAndOut:
+    SEC
+    RTS
+
     .org $17c0
 ReadInputs:
     LDA $2067
@@ -1798,7 +1859,7 @@ RIskip:
 
 
 
-    .org $180d
+    .org $1809
 DrawAdvTable:
 ; Draw "SCORE ADVANCE TABLE"
     LDA #$10
@@ -1921,7 +1982,7 @@ SplSexit:
     RTS
 
 
-
+    .org $18d4
 init:
     LDX #$00
     JSR CRMInitEntry            ; This is the copy-rom-to-ram, but skipping the first insctruction
@@ -1930,7 +1991,21 @@ init:
     STA $20cf                   ; ...into aShotReloadRate variable
     JMP SplashScreenloop        ; Jump to top of splash screen loop
 
-    .org $18f0
+RightDeltX:
+; If there is one alien left then the right motion is 3 instead of 2. That's
+; why the timing is hard to hit after the change.
+    LDA $2082
+    STA A
+    DEC A
+    LDA A
+    CMP #$00
+    BEQ RDXskip
+    LDA #$02
+    RTS
+RDXskip:
+    LDA #$03
+    RTS
+
 PlrShotAndEdgeBump:
     JSR PlayerShotHit
     JMP RackBump

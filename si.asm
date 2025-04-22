@@ -142,7 +142,7 @@ GO0normalmovement:
     INC HL
     LDA (HL), Y
     AND (HL), Y
-    CMP #$00
+    ;CMP #$00
     JMP GO0enableshots
 
 GO0346:
@@ -156,7 +156,7 @@ GO034a:
     STA BC
     LDA $20ef
     AND $20ef
-    CMP #$00
+    ;CMP #$00
     BNE GO0363
     LDA $201d
     CLC
@@ -603,7 +603,7 @@ Animate:
 Aniloop:
     LDA $20cb
     AND $20cb
-    CMP #$00
+    ;CMP #$00
     BEQ Aniloop
     LDA #$00
     STA $20c1
@@ -631,8 +631,9 @@ PrintMessageDel:
     STA $20c0   ; this is controlled by the screen interrupt
 PMDloop:
     LDA $20c0
+    SEC
     SBC #$01
-    CMP #$00
+    ;CMP #$00
     BNE PMDloop
     INC DE
     DEX
@@ -684,7 +685,7 @@ WaitOnDelay:
 WODloop:
     LDA $20c0
     AND $20c0
-    CMP #$00
+    ;CMP #$00
     BNE WODloop
     RTS
 
@@ -719,7 +720,7 @@ SplashScreenloop:
     LDX #$04
     LDA $20ec   ; Load splashAnimate into A
     AND $20ec   ; Set flags based on type
-    CMP #$00
+    ;CMP #$00
     BNE OBE8            ; Not 0: print normal "PLAY"
     LDA #$fa
     STA DE
@@ -737,7 +738,7 @@ OBE8return:
     ;JSR TwoSecDelay        ; all of this
     LDA $20ec   ; Load splashAnimate into A
     AND $20ec   ; Set flags based on type
-    CMP #$00
+    ;CMP #$00
     BNE PlayDemo
     JMP AniRepY
 
@@ -774,8 +775,8 @@ AniRepY:
     JSR Animate
     JSR OneSecDelay
 
-    LDA #$d7                ; This should be 0xb7 according to SI code,
-    STA HL                  ; but that does not quite match
+    LDA #$b7
+    STA HL
     LDA #$33
     STA HL+1
     LDX #$0a
@@ -787,7 +788,7 @@ PlayDemo:
     JSR ClearPlayField
     LDA $21ff
     AND $21ff
-    CMP #$00
+    ;CMP #$00
     BNE SkipShipReset
     JSR GetShipsPerCred
     STA $21ff
@@ -872,15 +873,15 @@ ScanLine224:
     ; coin stuff goes here (0x0020 - 0x0041)
     LDA $20e9
     AND $20e9
-    CMP #$00
+    ;CMP #$00
     BEQ RestoreAndOut
     LDA $20ef
     AND $20ef
-    CMP #$00
+    ;CMP #$00
     BNE MainGamePLayTimingLoop
     LDA $20eb
     AND $20eb
-    CMP #$00
+    ;CMP #$00
     BNE CreditButNoGame
     JSR ISRSplTasks
     JMP RestoreAndOut
@@ -926,11 +927,11 @@ MidScreenInterrupt:
     STA $2072               ; Put 0 in vblankstatus to indicate that upper screen objects can move
     LDA $20e9               ; Read suspendplay
     AND $20e9               ; Are we moving objects?
-    CMP #$00
+    ;CMP #$00
     BEQ RestoreAndOut       ; No? then out
     LDA $20ef               ; Read gameMode
     AND $20ef               ; Are we in game mode?
-    CMP #$00
+    ;CMP #$00
     BNE MSIskip             ; Yes? process objects and output
     CLC
     LDA $20c1               ; Read isrSplashTask
@@ -958,7 +959,7 @@ DrawAlien:
     STA HL+1                ; ...HL
     LDA (HL), Y             ; Load from $2002
     AND (HL), Y             ; Is it 1 (alien exploding)?
-    CMP #$00                ; check...
+    ;CMP #$00                ; check...
     BNE AExplodeTimeTrampoline ; If yes, time down the explosion
 
 ; if there are no exploding aliens, go drawn the grid
@@ -983,7 +984,7 @@ DrawAlien:
     STA HL                  ; ...stack (HL is now 2002 as set above)
 
     LDA A                   ; Get alien status...
-    CMP #$00                ; Is it dead?
+    ;CMP #$00                ; Is it dead?
     BEQ SkipDrawAlien       ; if yes, ship drawing it
 
     INC HL                  ; HL = $2003
@@ -1011,7 +1012,7 @@ DrawAlien:
     JSR ExDeHl              ; HL is now 1cxx where xx is alien type
     LDA BC                  ; Get animation number back
     AND BC                  ; Check if it is 0...
-    CMP #$00                ; or 1
+    ;CMP #$00                ; or 1
     BEQ DALskip2
     JSR DAloffset           ; if 1, jump to offset sprite below
 DALskip2:
@@ -1037,11 +1038,11 @@ CursorNextAlien:
     LDY #$00
     LDA $2068               ; Load playerOK
     AND $2068               ; Is the player blowing up?
-    CMP #$00
+    ;CMP #$00
     BEQ CNAout              ; Yes? Out
     LDA $2000               ; Load waitOnDraw
     AND $2000               ; Are we still drawing an alien?
-    CMP #$00
+    ;CMP #$00
     BNE CNAout              ; Yes? Out
     LDA $2067               ; Load playerDataMSB
     STA HL+1
@@ -1062,7 +1063,7 @@ CNAskip:
     STA BC
     DEC BC
     LDA BC
-    CMP #$00
+    ;CMP #$00
     BNE CNAnextalien
     LDA A
     STA $2006
@@ -1113,7 +1114,7 @@ GACskip:
 GACskip2:
     LDA A
     AND A           ; Right column?
-    CMP #$00        ; ...
+    ;CMP #$00        ; ...
     BEQ GACout      ; ...Yes? Then out.
 
     LDA BC        ; Load C
@@ -1128,7 +1129,7 @@ GACout:
 MoveRefAlien:
     DEC DE
     LDA DE
-    CMP #$00
+    ;CMP #$00
     BEQ ReturnTwo
     LDA #$20
     STA HL+1
@@ -1296,7 +1297,7 @@ CShloop:
     PHA                 ; ...done
     LDA $2081
     AND $2081
-    CMP #$00
+    ;CMP #$00
     BNE RememberShieldEntry
     JSR RestoreShields
 CSreturn:
@@ -1586,7 +1587,7 @@ PSHskip2:
     BCS ShotLeaving
     LDA $2002   ; Is an alien...
     AND $2002   ; ...blowing up?
-    CMP #$00
+    ;CMP #$00
     BNE PSHskip3 ; No? then leave.
     RTS
 PSHskip3:
@@ -1634,7 +1635,7 @@ AExplodeTime:
     DEX
     TXA
     STA (HL), Y
-    CMP #$00
+    ;CMP #$00
     BEQ AExplodeDone
     LDA $2064
     STA HL
@@ -1782,23 +1783,23 @@ PlrFireOrDemo:
     LDA (HL), Y
     STA BC
     ORA BC
-    CMP #$00
+    ;CMP #$00
     BNE PfodOut
     LDA $2025
     AND $2025
-    CMP #$00
+    ;CMP #$00
     BNE PfodOut
     LDA $20ef
     AND $20ef
-    CMP #$00
+    ;CMP #$00
     BEQ HandleDemo
     LDA $202d
     AND $202d
-    CMP #$00
+    ;CMP #$00
     BNE WaitForBounce
     JSR ReadInputs
     AND #$10
-    CMP #$00
+    ;CMP #$00
     BEQ PfodOut
     LDA #$01
     STA $2025
@@ -1808,7 +1809,7 @@ PlrFireOrDemo:
 WaitForBounce:
     JSR ReadInputs
     AND #$10
-    CMP #$00
+    ;CMP #$00
     BNE PfodOut
     STA $202d
     RTS
@@ -1859,7 +1860,7 @@ RIskip:
 
 
 
-    .org $1809
+    .org $17f9
 DrawAdvTable:
 ; Draw "SCORE ADVANCE TABLE"
     LDA #$10
@@ -1982,7 +1983,7 @@ SplSexit:
     RTS
 
 
-    .org $18d4
+    .org $18c4
 init:
     LDX #$00
     JSR CRMInitEntry            ; This is the copy-rom-to-ram, but skipping the first insctruction
@@ -1995,10 +1996,9 @@ RightDeltX:
 ; If there is one alien left then the right motion is 3 instead of 2. That's
 ; why the timing is hard to hit after the change.
     LDA $2082
-    STA A
-    DEC A
-    LDA A
-    CMP #$00
+    SEC
+    SBC #$01
+    ;CMP #$00
     BEQ RDXskip
     LDA #$02
     RTS
@@ -2105,7 +2105,6 @@ DrawNumShips:
     LDA #$27
     STA HL+1
     LDA A
-    CMP #$00
     BEQ ClearRemainderOfLine
 DrawLineOfShips:
     LDA #$60
@@ -2116,7 +2115,6 @@ DrawLineOfShips:
     JSR DrawSimpSprite
     DEC A
     LDA A
-    CMP #$00
     BNE DrawLineOfShips
 ClearRemainderOfLine:
     LDX #$10
@@ -2243,7 +2241,7 @@ RShloop:
     INC DE
     DEC BC
     LDA BC
-    CMP #$00
+    ;CMP #$00
     BNE RShloop
     PLA
     STA HL+1
@@ -2263,7 +2261,7 @@ RSHskip:
     STA BC
     DEC BC+1
     LDA BC+1
-    CMP #$00
+    ;CMP #$00
     BNE RestoreShields
     RTS
 

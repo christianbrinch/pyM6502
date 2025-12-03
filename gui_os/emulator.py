@@ -1,10 +1,6 @@
-"""This code will run the mos6502 emulator with a screen that renders a buffer at e000-ff40"""
-
 import threading
 import time
-
 import pygame
-
 import mos6502
 
 WIDTH, HEIGHT = 640, 400
@@ -16,7 +12,7 @@ pygame.display.set_caption("6502 emulator")
 clock = pygame.time.Clock()
 
 # Initialize memory (shared resource)
-mem = mos6502.Memory(file="<rom goes here>")
+mem = mos6502.Memory(file="os.rom")
 
 # Initialize CPU
 cpu = mos6502.Processor(mem)
@@ -70,12 +66,11 @@ def horizontal_scanning(mem):
                     color = (255 * p, 255 * p, 255 * p)
                     sx = 2 * (8 * x + bit)
                     sy = 2 * y
-                    # These four lines emulates scanlines
                     px[sx, sy] = color
                     px[sx + 1, sy] = color
                     px[sx, sy + 1] = (int(color[0] * 0.6),) * 3
                     px[sx + 1, sy + 1] = (int(color[0] * 0.6),) * 3
-
+        del px
         screen.blit(buffer, (0, 0))
         pygame.display.flip()
 

@@ -44,8 +44,8 @@ buffer_lock = threading.Lock()
 
 
 def cpu_step(cpu):
-    global IRQ
     run = 1
+    global IRQ
     while run:
         # Emulate shift register
         if cpu.memory[0x0061] > 0:

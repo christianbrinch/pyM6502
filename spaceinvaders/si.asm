@@ -470,26 +470,31 @@ GetShipsPerCred:
 
     .org $08f3
 PrintMessage:
-    LDY #$00
     TXA
     PHA
     LDA DE
     PHA
     LDA DE+1
     PHA
+    TYA
+    PHA
     LDA (DE),Y
     JSR DrawChar
+    PLA
+    TAY
+    INY
     PLA
     STA DE+1
     PLA
     STA DE
     PLA
     TAX
-    INC DE
     DEX
     CPX #$00
     BNE PrintMessage
     RTS
+
+
 
 GetNumberOfShips:
     LDY #$00
@@ -503,29 +508,17 @@ GetNumberOfShips:
 
 DrawChar:
 ; Determine the character's address from the character pointer
-    LDY #$00
-    STY A+1
-    LDY #$03
-DCloop:
-    ASL
-
-    BCC DCskip
-    INC A+1
-DCskip:
-    DEY
-    CPY #$00
-    BNE DCloop
-
     STA DE
-    LDA A+1
-    CLC
+    LDA #$00
+    ASL DE
+    ADC #$00
+    ASL DE
+    ADC #$00
+    ASL DE
     ADC #$1e
     STA DE+1
     LDX #$08
     JMP DrawSimpSprite
-
-
-
 
 
     .org $09aa
@@ -789,7 +782,6 @@ PlayDemo:
     JSR ClearPlayField
     LDA $21ff
     AND $21ff
-    ;CMP #$00
     BNE SkipShipReset
     JSR GetShipsPerCred
     STA $21ff
@@ -800,9 +792,10 @@ SkipShipReset:
     JSR DrawShieldPl1
     JSR RestoreShields1
     LDA #$01
-    STA $20c1
+    ;STA $20c1
     LDY #$00
     JSR DrawBottomLine
+    brk
 
 DemoLoop:
     JSR PlrFireOrDemo
@@ -874,15 +867,12 @@ ScanLine224:
     ; coin stuff goes here (0x0020 - 0x0041)
     LDA $20e9
     AND $20e9
-    ;CMP #$00
     BEQ RestoreAndOut
     LDA $20ef
     AND $20ef
-    ;CMP #$00
     BNE MainGamePLayTimingLoop
     LDA $20eb
     AND $20eb
-    ;CMP #$00
     BNE CreditButNoGame
     JSR ISRSplTasks
     JMP RestoreAndOut
@@ -928,11 +918,9 @@ MidScreenInterrupt:
     STA $2072               ; Put 0 in vblankstatus to indicate that upper screen objects can move
     LDA $20e9               ; Read suspendplay
     AND $20e9               ; Are we moving objects?
-    ;CMP #$00
     BEQ RestoreAndOut       ; No? then out
     LDA $20ef               ; Read gameMode
     AND $20ef               ; Are we in game mode?
-    ;CMP #$00
     BNE MSIskip             ; Yes? process objects and output
     CLC
     LDA $20c1               ; Read isrSplashTask
@@ -1261,6 +1249,13 @@ CDPloop:
     PHA
     LDX #$2c
     JSR BlockCopy
+    CLC
+    LDA HL
+    ADC #$2c
+    STA HL
+    LDA HL+1
+    ADC #$00
+    STA HL+1
     PLA
     TAX
     PLA
@@ -1268,7 +1263,6 @@ CDPloop:
     PLA
     STA DE
     DEX
-    CPX #$00
     BNE CDPloop
     RTS
 
@@ -1289,7 +1283,6 @@ CopyShields:
     STA HL
     LDA #$28
     STA HL+1
-    ;LDA #$04
     LDX #$04
 CShloop:
     LDA BC              ; Push BC...
@@ -1298,7 +1291,6 @@ CShloop:
     PHA                 ; ...done
     LDA $2081
     AND $2081
-    ;CMP #$00
     BNE RememberShieldEntry
     JSR RestoreShields
 CSreturn:
@@ -1551,21 +1543,20 @@ DSCskip3:
     RTS
 
 ClearSmallSprite:
-; Clear a one byte sprite at HL. B=number of rows.
+; Clear a one byte sprite at HL. X=number of rows.
     LDA #$00
 CSSloop:
     PHA
     STA (HL), Y
-    LDA #$20
     CLC
-    ADC HL
+    LDA HL
+    ADC #$20
     STA HL
-    BCC CSSskip
-    INC HL+1
-CSSskip:
+    LDA HL+1
+    ADC #$00
+    STA HL+1
     PLA
     DEX
-    CPX #$00
     BNE CSSloop
     RTS
 
@@ -1810,7 +1801,6 @@ PlrFireOrDemo:
 WaitForBounce:
     JSR ReadInputs
     AND #$10
-    ;CMP #$00
     BNE PfodOut
     STA $202d
     RTS
@@ -1861,7 +1851,7 @@ RIskip:
 
 
 
-    .org $17f9
+    .org $17f7
 DrawAdvTable:
 ; Draw "SCORE ADVANCE TABLE"
     LDA #$10
@@ -1873,6 +1863,7 @@ DrawAdvTable:
     LDA #$1c
     STA DE+1
     LDX #$15
+    LDY #$00
     JSR PrintMessage
     LDA #$0a
     STA $206c
@@ -1999,7 +1990,6 @@ RightDeltX:
     LDA $2082
     SEC
     SBC #$01
-    ;CMP #$00
     BEQ RDXskip
     LDA #$02
     RTS
@@ -2012,15 +2002,17 @@ PlrShotAndEdgeBump:
     JMP RackBump
 
 DrawScoreHead:
-    LDX #$1c
-    LDA #$1e
-    STA HL
-    LDA #$24
-    STA HL+1
-    LDA #$e4
-    STA DE
-    LDA #$1a
-    STA DE+1
+; Print score header " SCORE<1> HI-SCORE SCORE<2> "
+    LDX #$1c            ; 28 characters in score head message
+    LDA #$1e            ; Screen...
+    STA HL              ; location...
+    LDA #$24            ; descriptor...
+    STA HL+1            ; into HL
+    LDA #$e4            ; Message...
+    STA DE              ; location...
+    LDA #$1a            ; in RAM...
+    STA DE+1            ; into DE
+    LDY #$00
     JMP PrintMessage
 
 DrawPlayer1Score:
@@ -2038,20 +2030,22 @@ DrawPlayer2Score:
     JMP DrawScore
 
 DrawScore:
-    LDY #$00
-    LDA (HL),Y
-    STA DE+1
-    INC HL
-    LDA (HL),Y
+    LDY #$00    ; 0 into Y. Address is in HL
+    LDA (HL),Y  ; Load...
+    STA DE+1    ; score...
+    INY         ; into...
+    LDA (HL),Y  ; DE
     STA DE
-    INC HL
-    LDA (HL),Y
-    TAX
-    INC HL
-    LDA (HL),Y
-    STA HL+1
+    INY
+    LDA (HL),Y  ; and...
+    TAX         ; load...
+    INY         ; location...
+    LDA (HL),Y  ; into...
+    STA HL+1    ; HL
     STX HL
     JMP Print4Digits
+
+
 
 PrintCreditLabel:
 ; Print message "CREDIT "
@@ -2064,6 +2058,7 @@ PrintCreditLabel:
     STA DE
     LDA #$1f
     STA DE+1
+    LDY #$00
     JMP PrintMessage
 
 DrawNumCredits:
@@ -2138,9 +2133,6 @@ CYTBout:
     RTS
 
 
-
-
-
 BlockCopy:
     LDA (DE), Y
     STA (HL), Y
@@ -2148,13 +2140,6 @@ BlockCopy:
     DEX
     CPX #$00
     BNE BlockCopy
-    CLC
-    TYA
-    ADC HL
-    STA HL
-    BCC BCskip1
-    INC HL+1
-BCskip1:
     RTS
 
 ReadDesc:
@@ -2303,7 +2288,7 @@ RemSout:
 
 
     .org $1ae4
-    ; " SCORE<1> HI-SCORE SCORE<2>"
+    ; " SCORE<1> HI-SCORE SCORE<2> "
     .byte $26, $12, $02, $0E, $11, $04, $24, $1B, $25, $26, $07, $08
     .byte $3F, $12, $02, $0E, $11, $04, $26, $12, $02, $0E, $11, $04
     .byte $24, $1C, $25, $26

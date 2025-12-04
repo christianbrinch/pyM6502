@@ -221,7 +221,7 @@ class Set:
     def adc(self, obj, mode):
         """Add with carry"""
         _, value = eval("self." + mode + "(obj)")
-        result = obj.reg_a + value + (obj.reg_p & 0x00)
+        result = obj.reg_a + value + (obj.reg_p & 0x01)
         M = bool(obj.reg_a & 0x80)
         N = bool(value & 0x80)
         C = bool((obj.reg_a & 0x40) & (value & 0x40))
@@ -257,7 +257,7 @@ class Set:
     def sbc(self, obj, mode):
         """Subtract with borrow"""
         _, value = eval("self." + mode + "(obj)")
-        result = obj.reg_a - value - (1 - (obj.reg_p & 0x00))
+        result = obj.reg_a - value - (1 - (obj.reg_p & 0x01))
         M = bool(obj.reg_a & 0x80)
         N = bool(value & 0x80)
         C = bool((obj.reg_a & 0x40) & (value & 0x40))
@@ -305,13 +305,13 @@ class Set:
 
     def inx(self, obj, mode):
         """Increment register X"""
-        obj.reg_x = (obj.reg_x + 0x01) % 0xFF
+        obj.reg_x = (obj.reg_x + 0x01) % 0x100
         obj.toggle(1, not obj.reg_x)  # toogle Z
         obj.toggle(7, obj.reg_x & 0x80)  # toogle N
 
     def iny(self, obj, mode):
         """Increment register Y"""
-        obj.reg_y = (obj.reg_y + 0x01) % 0xFF
+        obj.reg_y = (obj.reg_y + 0x01) % 0x100
         obj.toggle(1, not obj.reg_y)  # toogle Z
         obj.toggle(7, obj.reg_y & 0x80)  # toogle N
 

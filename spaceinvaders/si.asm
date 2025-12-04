@@ -792,10 +792,9 @@ SkipShipReset:
     JSR DrawShieldPl1
     JSR RestoreShields1
     LDA #$01
-    ;STA $20c1
+    STA $20c1
     LDY #$00
     JSR DrawBottomLine
-    brk
 
 DemoLoop:
     JSR PlrFireOrDemo

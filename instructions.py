@@ -19,6 +19,10 @@ class Set:
         addr = obj.program_counter
         return addr, obj.fetch_byte()
 
+    def ind(self, obj):
+        addr = obj.read_word(obj.fetch_word())
+        return addr, None
+
     def zp(self, obj):
         addr = obj.fetch_byte()
         return addr, obj.read_byte(addr)

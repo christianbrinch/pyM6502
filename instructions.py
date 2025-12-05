@@ -180,7 +180,7 @@ class Set:
     def ror(self, obj, mode):
         """Rotate bits to the right"""
         addr, value = eval("self." + mode + "(obj)")
-        carry = obj.reg_p  # Hold carry
+        carry = obj.reg_p & 0x01  # Hold carry
         obj.toggle(0, value & 0x01)  # toogle C
         value = (value >> 1) | carry * 0x80
         obj.toggle(1, not value)  # toogle Z

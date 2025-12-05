@@ -628,7 +628,6 @@ PMDloop:
     LDA $20c0
     SEC
     SBC #$01
-    ;CMP #$00
     BNE PMDloop
     INC DE
     DEX
@@ -885,7 +884,7 @@ MGPTLskipsound:
     LDA $2032
     STA $2080
     JSR DrawAlien
-    JSR RunGameObjs
+    ;JSR RunGameObjs
     ;JSR TimeToSaucer
     NOP                 ; ***Why? this is in the original code
 
@@ -947,7 +946,6 @@ DrawAlien:
     STA HL+1                ; ...HL
     LDA (HL), Y             ; Load from $2002
     AND (HL), Y             ; Is it 1 (alien exploding)?
-    ;CMP #$00                ; check...
     BNE AExplodeTimeTrampoline ; If yes, time down the explosion
 
 ; if there are no exploding aliens, go drawn the grid
@@ -972,8 +970,7 @@ DrawAlien:
     STA HL                  ; ...stack (HL is now 2002 as set above)
 
     LDA A                   ; Get alien status...
-    ;CMP #$00                ; Is it dead?
-    BEQ SkipDrawAlien       ; if yes, ship drawing it
+    BEQ SkipDrawAlien       ; Is it dead? If yes, ship drawing it
 
     INC HL                  ; HL = $2003
     INC HL                  ; HL = $2004 <- this is the pointer to the alien's row
@@ -1000,7 +997,6 @@ DrawAlien:
     JSR ExDeHl              ; HL is now 1cxx where xx is alien type
     LDA BC                  ; Get animation number back
     AND BC                  ; Check if it is 0...
-    ;CMP #$00                ; or 1
     BEQ DALskip2
     JSR DAloffset           ; if 1, jump to offset sprite below
 DALskip2:
@@ -1026,11 +1022,9 @@ CursorNextAlien:
     LDY #$00
     LDA $2068               ; Load playerOK
     AND $2068               ; Is the player blowing up?
-    ;CMP #$00
     BEQ CNAout              ; Yes? Out
     LDA $2000               ; Load waitOnDraw
     AND $2000               ; Are we still drawing an alien?
-    ;CMP #$00
     BNE CNAout              ; Yes? Out
     LDA $2067               ; Load playerDataMSB
     STA HL+1
@@ -1051,7 +1045,6 @@ CNAskip:
     STA BC
     DEC BC
     LDA BC
-    ;CMP #$00
     BNE CNAnextalien
     LDA A
     STA $2006
@@ -1102,7 +1095,6 @@ GACskip:
 GACskip2:
     LDA A
     AND A           ; Right column?
-    ;CMP #$00        ; ...
     BEQ GACout      ; ...Yes? Then out.
 
     LDA BC        ; Load C
@@ -1117,7 +1109,6 @@ GACout:
 MoveRefAlien:
     DEC DE
     LDA DE
-    ;CMP #$00
     BEQ ReturnTwo
     LDA #$20
     STA HL+1
@@ -1435,7 +1426,6 @@ DSSloop:
     INC HL+1
 DSSskip:
     DEX
-    CPX #$00
     BNE DSSloop
     RTS
 
@@ -1665,10 +1655,9 @@ RackBump:
     STA HL              ; HL
     CLC
     JSR CheckEdge       ; Check the right edge
-    BCC RBnoout
+    BCS RBnoout
     RTS
 RBnoout:
-    brk
     LDA #$fe            ; delta-x = -2
     STA $2008           ; ...store in refAlienDXr
     LDA #$01            ; Moving right
@@ -1684,14 +1673,14 @@ RBleft:
     STA HL              ; HL
     CLC
     JSR CheckEdge       ; Check the left edge
-    BCC RBnoout2
+    BCS RBnoout2
     RTS
 RBnoout2:
     JSR RightDeltX      ; Get the rigth moving delta x (normal 2, one alien left 3)
     STA $2008
     LDA #$00
     JMP RBsetvars
-;
+
 CheckEdge:
     LDA #$17
     STA BC
@@ -1704,8 +1693,6 @@ CEloop:
 CEskip:
     INC HL
     DEC BC
-    LDA BC
-    CMP #$00
     BNE CEloop
     RTS
 

@@ -46,6 +46,7 @@ buffer_lock = threading.Lock()
 def cpu_step(cpu):
     run = 1
     global IRQ
+    flag=0
     while run:
         # Emulate shift register
         if cpu.memory[0x0061] > 0:
@@ -63,6 +64,12 @@ def cpu_step(cpu):
                 # cpu.reg_p += 0x10
 
             else:
+                #if flag == 0 and cpu.memory[0x2007] == 0xf8:
+                #    print("$2007 is set here", cpu.program_counter)
+                #    flag=1
+                #if flag == 1 and cpu.memory[0x2007] == 0x00:
+                #    print("$2007 is reset here", cpu.program_counter)
+                #    input()
                 cpu.exec(output=False)
 
         else:

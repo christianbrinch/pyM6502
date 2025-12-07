@@ -697,10 +697,6 @@ SplashSpriteTrampoline:
 
 
 SplashScreenloop:
-    LDA #$01       ; for
-    STA $20ec       ; debugging
-    ;LDA #$02        ; purposes
-    ;STA $20c1       ; only
 ; Splash screen loop
     LDA #$00
     ; STA SOUND1    Turn off sound
@@ -731,7 +727,6 @@ OBE8return:
     JSR TwoSecDelay        ; all of this
     LDA $20ec   ; Load splashAnimate into A
     AND $20ec   ; Set flags based on type
-    ;CMP #$00
     BNE PlayDemo
     JMP AniRepY
 
@@ -799,6 +794,7 @@ DemoLoop:
     JSR PlrFireOrDemo
     JSR PlrShotAndEdgeBump
     ;JSR CheckPlrHit
+    ;... more demo loop here (original memory $0B83)
     JMP DemoLoop
 
 
@@ -971,7 +967,7 @@ DrawAlien:
 
     LDA A                   ; Get alien status...
     BEQ SkipDrawAlien       ; Is it dead? If yes, ship drawing it
-
+    
     INC HL                  ; HL = $2003
     INC HL                  ; HL = $2004 <- this is the pointer to the alien's row
     LDA (HL), Y             ; What kind of alien lives in this row?
@@ -1108,7 +1104,6 @@ GACout:
 
 MoveRefAlien:
     DEC DE
-    LDA DE
     BEQ ReturnTwo
     LDA #$20
     STA HL+1
@@ -1118,9 +1113,9 @@ MoveRefAlien:
     STA (HL), Y
     INC HL
     LDA (HL), Y
-    STA BC+1
-    LDA #$00
-    STA (HL), Y
+    TAX             ; Put delta-y in X...
+    LDA #$00        ; and reset delta-y...
+    STA (HL), Y     ; to zero
     JSR AddDelta
     LDA #$20
     STA HL+1
@@ -1170,12 +1165,12 @@ ReturnTwo:
 
 
 DrawBottomLine:
-    LDA #$02
-    STA HL
-    LDA #$24
-    STA HL+1
-    LDA #$01
-    LDX #$e0
+    LDA #$02        ; Load...
+    STA HL          ; screen...
+    LDA #$24        ; coordinate..
+    STA HL+1        ; into HL
+    LDA #$01        ; 1 pixel into A
+    LDX #$e0        ; Width of the screen
     JMP CSSloop
 
 AddDelta:
@@ -1649,6 +1644,7 @@ RackBump:
     LDA $200d           ; load rack direction
     AND $200d           ; Moving right?
     BNE RBleft          ; No? then we are moving left
+    
     LDA #$3e            ; Load
     STA HL+1            ; right edge
     LDA #$a4            ; into
@@ -1657,6 +1653,7 @@ RackBump:
     JSR CheckEdge       ; Check the right edge
     BCS RBnoout
     RTS
+
 RBnoout:
     LDA #$fe            ; delta-x = -2
     STA $2008           ; ...store in refAlienDXr
@@ -2124,7 +2121,6 @@ BlockCopy:
     STA (HL), Y
     INY
     DEX
-    CPX #$00
     BNE BlockCopy
     RTS
 
@@ -2213,7 +2209,6 @@ RShloop:
     INC DE
     DEC BC
     LDA BC
-    ;CMP #$00
     BNE RShloop
     PLA
     STA HL+1

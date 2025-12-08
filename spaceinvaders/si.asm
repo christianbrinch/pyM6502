@@ -967,7 +967,7 @@ DrawAlien:
 
     LDA A                   ; Get alien status...
     BEQ SkipDrawAlien       ; Is it dead? If yes, ship drawing it
-    
+
     INC HL                  ; HL = $2003
     INC HL                  ; HL = $2004 <- this is the pointer to the alien's row
     LDA (HL), Y             ; What kind of alien lives in this row?
@@ -1284,15 +1284,11 @@ CSreturn:
     PLA                 ;
     STA BC              ; ...done
     DEX
-    CPX #$00
     BEQ ShieldsOut      ; No? Continue, otherwise out
     CLC
     LDA #$e0
     ADC HL
     STA HL
-    BCC CShskip
-    INC HL+1
-CShskip:
     LDA #$02
     ADC HL+1
     STA HL+1
@@ -1644,7 +1640,7 @@ RackBump:
     LDA $200d           ; load rack direction
     AND $200d           ; Moving right?
     BNE RBleft          ; No? then we are moving left
-    
+
     LDA #$3e            ; Load
     STA HL+1            ; right edge
     LDA #$a4            ; into
@@ -2195,8 +2191,6 @@ RestoreShields:
     LDY #$00
     LDA BC
     PHA
-    LDA BC+1
-    PHA
     LDA HL
     PHA
     LDA HL+1
@@ -2208,27 +2202,19 @@ RShloop:
     INC HL
     INC DE
     DEC BC
-    LDA BC
     BNE RShloop
     PLA
     STA HL+1
     PLA
-    STA HL
-    LDA #$20
     CLC
-    ADC HL
+    ADC #$20
     STA HL
     BCC RSHskip
-
     INC HL+1
 RSHskip:
     PLA
-    STA BC+1
-    PLA
     STA BC
     DEC BC+1
-    LDA BC+1
-    ;CMP #$00
     BNE RestoreShields
     RTS
 

@@ -399,6 +399,7 @@ EndOfBlowup:
     LDA #$54
     STA HL
 GO1skip6:
+    brk
     STA $208d
     LDX $208f
     INX
@@ -880,7 +881,7 @@ MGPTLskipsound:
     LDA $2032
     STA $2080
     JSR DrawAlien
-    ;JSR RunGameObjs
+    JSR RunGameObjs
     ;JSR TimeToSaucer
     NOP                 ; ***Why? this is in the original code
 
@@ -1707,7 +1708,11 @@ DrSploop:
     ;LDA SHFTX
     STA (HL), Y         ; Store sprite to HL
 
+
+
     INC HL              ; This is the part of the
+    LDA #$00            ; These two lines clear the sprite when it bumps
+    STA (HL), Y         ; 8 pixels down. Not part of the original code.
     INC DE              ; original shift code
 
     ;LDA SHFTY
@@ -1749,28 +1754,23 @@ PlrFireOrDemo:
     STA HL
     LDA #$20
     STA HL+1
-    LDA (HL), Y
+    ;LDA (HL), Y    ; This line seems redeundant
     INC HL
     LDA (HL), Y
     STA BC
     ORA BC
-    ;CMP #$00
     BNE PfodOut
     LDA $2025
     AND $2025
-    ;CMP #$00
     BNE PfodOut
     LDA $20ef
     AND $20ef
-    ;CMP #$00
     BEQ HandleDemo
     LDA $202d
     AND $202d
-    ;CMP #$00
     BNE WaitForBounce
     JSR ReadInputs
     AND #$10
-    ;CMP #$00
     BEQ PfodOut
     LDA #$01
     STA $2025

@@ -253,20 +253,16 @@ GO1skip2:
     CMP #$02
     BEQ MovePlyShot
 
-
     INC HL
     CMP #$03
     BNE GO1otheroptstramp
 
 
     LDA (HL), Y
-    TAX
-    DEX
-    TXA
+    SEC
+    SBC #$01
     STA (HL), Y
-    CPX #$00
     BEQ EndOfBlowuptramp
-    TXA
     CMP #$0f
     BEQ GO1skip3
     RTS
@@ -399,7 +395,6 @@ EndOfBlowup:
     LDA #$54
     STA HL
 GO1skip6:
-    brk
     STA $208d
     LDX $208f
     INX
@@ -1559,8 +1554,7 @@ PSHskip2:
     STA A       ; save for later
     BCS ShotLeaving
     LDA $2002   ; Is an alien...
-    AND $2002   ; ...blowing up?
-    ;CMP #$00
+    AND $2002   ; ...blowing up
     BNE PSHskip3 ; No? then leave.
     RTS
 PSHskip3:

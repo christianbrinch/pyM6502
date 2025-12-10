@@ -61,14 +61,10 @@ def cpu_step(cpu):
             if not (cpu.reg_p & 0x10):
                 cpu.exec(output=True, zeropage=True, mempage=0x20)
                 input()
-                # cpu.reg_p += 0x10
+                cpu.toggle(4, 1)
 
             else:
-                try:
-                    cpu.exec(output=False)
-                except:
-                    cpu.exec(output=True, zeropage=True, mempage=0x20)
-                    input()
+                cpu.exec(output=False)
 
         else:
             # Write IRQ handler address to IRQ vector

@@ -1561,9 +1561,7 @@ PSHskip3:
     LDA A       ; restore original y coordinate
     CLC
     CMP #$ce    ; compare to 206 (50 from top)
-    BCS PSHskip4
-    JMP MarkSaucerHit
-PSHskip4:
+    BCS MarkSaucerHit
     ADC #$06    ; offset coordinate for explosion
     STA A       ; Hold value
     LDA $2009   ; Ref alien y coordinate
@@ -1574,13 +1572,16 @@ PSHskip4:
 
     CLC
     CMP #$90        ; if this is true,
-    BCS PSHskip5    ; ...aliens are in the shields
-    JMP CodeBug1
-PSHskip5:
+    BCS CodeBug1    ; ...aliens are in the shields
     CMP A
-    BCC ShotLeaving
+    BCS ShotLeaving
+
 
 CodeBug1:
+; This is where we hit an alien
+    LDA A
+    STA HL+1
+    RTS FindRow
     RTS
 
     .org $152d
@@ -1602,7 +1603,6 @@ AExplodeTime:
     DEX
     TXA
     STA (HL), Y
-    ;CMP #$00
     BEQ AExplodeDone
     LDA $2064
     STA HL
@@ -1619,13 +1619,54 @@ AETout2:
 AExplodeDone:
     RTS
 
+Cnt16s:
+    LDX #$00
+    CLC
+    CPX HL+1
+    BCS cnt16skip1
+    JSR WrapRef
+cnt16skip1:
+    CLC
+    CPX HL+1
+    BCS cnt16skip2
+    RTS
+cnt16skip2:
+    LDA A
+    CLC
+    ADC #$10
+    STA A
+    INX
+    JMP Cnt16s
+
+
+FindRow:
+; HL+1 contains an Yr coordinate. Find the corresponding row.
+; return row coordinate in HL+1 and row number in X
+    LDA $2009
+    STA A
+    JSR Cnt16s
+
+
+FindColumn:
+
+
+
     .org $1579
 MarkSaucerHit:
     LDA #$01
     STA $2085
     JMP AETout1
 
+
     .org $1597
+WrapRef:
+    INX
+    CLC
+    LDA A
+    ADC #$10
+    STA A
+
+
 RackBump:
 ; When rack bumps the edge of the screen then the direction flips and the rack
 ; drops 8 pixels. The deltaX and deltaY values are changed here. Interestingly

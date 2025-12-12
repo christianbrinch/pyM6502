@@ -1563,7 +1563,7 @@ PSHskip3:
     CMP #$ce    ; compare to 206 (50 from top)
     BCS MarkSaucerHit
     ADC #$06    ; offset coordinate for explosion
-    STA A       ; Hold value
+    STA BC      ; Hold value
     LDA $2009   ; Ref alien y coordinate
 
 ; If the lower 4 rows are all empty then the reference alien's Y coordinate will wrap around from 0 to F8.
@@ -1573,24 +1573,51 @@ PSHskip3:
     CLC
     CMP #$90        ; if this is true,
     BCS CodeBug1    ; ...aliens are in the shields
-    CMP A
+    CMP BC
     BCS ShotLeaving
 
 
 CodeBug1:
 ; This is where we hit an alien
-    LDA A
+    ;BRK
+    ;SEI
+    LDA BC
+    STA HL
+    JSR FindRow
+    LDA $202a
     STA HL+1
-    RTS FindRow
+    JSR FindColumn
+    LDA HL+1
+    STA $2065
+    LDA HL
+    STA $2064
+    LDA #$05
+    STA $2025
+    JSR GetAlienStatPtr
+    BRK
+    SEI
+    LDA (HL),Y
+    STA A
+    AND A
+    BNE CodeBugSkip
+    JMP ShotLeaving
+CodeBugSkip:
+    LDA #$00
+    STA (HL),Y
+    ;JSR ScoreForAlien
+    JSR ReadDesc
+    JSR DrawSprite
+    LDA #$10
+    STA $2003
     RTS
 
-    .org $152d
+
 ShotLeaving:
     LDA #$03
     STA $2025
     JMP AETout2
 
-    .org $1538
+
 AExplodeTime:
 ; Time down the alien explosion. Remove when done.
     LDY #$00
@@ -1619,53 +1646,85 @@ AETout2:
 AExplodeDone:
     RTS
 
-Cnt16s:
-    LDX #$00
-    CLC
-    CPX HL+1
-    BCS cnt16skip1
-    JSR WrapRef
-cnt16skip1:
-    CLC
-    CPX HL+1
-    BCS cnt16skip2
-    RTS
-cnt16skip2:
-    LDA A
-    CLC
-    ADC #$10
-    STA A
-    INX
-    JMP Cnt16s
-
-
-FindRow:
-; HL+1 contains an Yr coordinate. Find the corresponding row.
-; return row coordinate in HL+1 and row number in X
-    LDA $2009
-    STA A
-    JSR Cnt16s
-
-
-FindColumn:
-
-
-
-    .org $1579
 MarkSaucerHit:
     LDA #$01
     STA $2085
     JMP AETout1
 
 
-    .org $1597
-WrapRef:
-    INX
-    CLC
+Cnt16s:
+    LDA #$00        ; Put 0...
+    STA BC+1        ; in C
     LDA A
+    CLC
+    CMP HL+1
+    BCS cnt16skip1
+    JSR WrapRef
+cnt16skip1:
+    CLC
+    CMP HL+1
+    BCS cnt16skip2
+    RTS
+cnt16skip2:
+    CLC
     ADC #$10
     STA A
+    INC BC+1
+    JMP Cnt16s
 
+
+FindRow:
+; HL contains an Yr coordinate. Find the corresponding row.
+; return row coordinate in HL and row number in C
+    LDA $2009       ; Load ref alien x coord...
+    STA A           ; ... and save it for now
+    LDA HL          ; Move low byte...
+    STA HL+1        ; ...to high byte
+    JSR Cnt16s
+    LDA BC+1
+    STA BC
+    DEC BC
+    LDA A
+    SEC
+    SBC #$10
+    STA HL
+    RTS
+
+FindColumn:
+    LDA $200a
+    JSR Cnt16s
+    SEC
+    SBC #$10
+    STA HL+1
+    RTS
+
+
+
+
+GetAlienStatPtr:
+    LDA BC
+    ASL
+    ASL
+    ASL
+    ADC BC
+    ADC BC
+    ADC BC
+    ADC BC+1
+    SEC
+    SBC #$01
+    STA HL+1
+    LDA $2067
+    STA HL
+    RTS
+
+
+
+WrapRef:
+    INC BC+1
+    CLC
+    ADC #$10
+    STA A
+    RTS
 
 RackBump:
 ; When rack bumps the edge of the screen then the direction flips and the rack

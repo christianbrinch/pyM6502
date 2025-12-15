@@ -49,23 +49,23 @@ def render_screen(framebuffer, mem):
 
 class CRT:
     def __init__(self):
-        self.cycle_counter = 0
-        self.half_irq_fired = False
+        self.cycles = 0
+        self.half_fired = False
 
-    def timing(self, cpu, frame_cycles):
-        self.cycle_counter += frame_cycles
+    def timing(self, cpu, cycles):
+        self.cycles += cycles
 
         if (
-            self.cycle_counter >= CYCLES_PER_HALF_FRAME
+            self.cycles >= CYCLES_PER_HALF_FRAME
             and not (cpu.reg_p & 0x04)
-            and not self.half_irq_fired
+            and not self.half_fired
         ):
-            self.half_irq_fired = True
+            self.half_fired = True
             return 0x0C08
 
-        if self.cycle_counter >= CYCLES_PER_FRAME and not (cpu.reg_p & 0x04):
-            self.cycle_counter -= CYCLES_PER_FRAME
-            self.half_irq_fired = False
+        if self.cycles >= CYCLES_PER_FRAME and not (cpu.reg_p & 0x04):
+            self.cycles = 0 #-= CYCLES_PER_FRAME
+            self.half_fired = False
             return 0x0C23
 
         return False
@@ -79,25 +79,31 @@ def main():
     crt = CRT()
     running = True
     IRQ = False
+    framebuffer = np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8)
 
     while running:
         frame_cycles = 0
         frame_start = time.perf_counter()
         frame_ready = False
-        framebuffer = np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8)
+        tmp=0
 
-        while frame_cycles < CYCLES_PER_FRAME:
+        while tmp < CYCLES_PER_FRAME:
             # Emulate shift register
             if cpu.memory[0x0061] > 0:
                 cpu.memory[0x0062] = (cpu.memory[0x0061] << cpu.memory[0x0060]) & 0xFF
                 cpu.memory[0x0063] = (cpu.memory[0x0061] << cpu.memory[0x0060]) >> 8
                 cpu.memory[0x0061] = 0x00
 
-            cpu.exec(output=False)
-            frame_cycles += 1
+            if not (cpu.reg_p & 0x10):
+                cpu.exec(output=True, zeropage=True, mempage=0x20)
+                input()
+            else:
+                cpu.exec(output=False)
+            
+            frame_cycles = 10
+            tmp += frame_cycles
 
             IRQ = crt.timing(cpu, frame_cycles)
-            print(IRQ)
 
             if IRQ:
                 # Write IRQ handler address to IRQ vector
@@ -119,13 +125,12 @@ def main():
         if frame_ready:
             render_screen(framebuffer, mem)
 
-        mem[0x00A1] = 0x08
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            elif event.type == pygame.KEYDOWN:
-                if event.key in KEY_MAP:
-                    mem[0x00A1] += KEY_MAP[event.key]
+        #for event in pygame.event.get():
+        #    if event.type == pygame.QUIT:
+        #        running = False
+        #    elif event.type == pygame.KEYDOWN:
+        #        if event.key in KEY_MAP:
+        #            mem[0x00A1] = KEY_MAP[event.key]
 
         # Throttle to real time (optional but recommended)
         elapsed = time.perf_counter() - frame_start

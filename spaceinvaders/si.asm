@@ -586,6 +586,18 @@ CPFskip:
     BCC CPFloop     ; If reached, then out
     RTS
 
+ScoreForAlien:
+    LDA $20ef
+    AND $20ef
+    BEQ ScoreForAlienOut
+    ; put alien score stuff here $0a66-$0a7a in origianl code
+
+ScoreForAlienOut:
+    LDA #$20
+    STA HL+1
+    LDA #$62
+    STA HL
+    RTS
 
 Animate:
 ; Start the ISR moving the sprite. Return when done.
@@ -1594,8 +1606,6 @@ CodeBug1:
     LDA #$05
     STA $2025
     JSR GetAlienStatPtr
-    BRK
-    SEI
     LDA (HL),Y
     STA A
     AND A
@@ -1604,7 +1614,7 @@ CodeBug1:
 CodeBugSkip:
     LDA #$00
     STA (HL),Y
-    ;JSR ScoreForAlien
+    JSR ScoreForAlien
     JSR ReadDesc
     JSR DrawSprite
     LDA #$10
@@ -1616,6 +1626,12 @@ ShotLeaving:
     LDA #$03
     STA $2025
     JMP AETout2
+
+MarkSaucerHit:
+    LDA #$01
+    STA $2085
+    JMP AETout1
+
 
 
 AExplodeTime:
@@ -1646,10 +1662,6 @@ AETout2:
 AExplodeDone:
     RTS
 
-MarkSaucerHit:
-    LDA #$01
-    STA $2085
-    JMP AETout1
 
 
 Cnt16s:
@@ -1658,19 +1670,19 @@ Cnt16s:
     LDA A
     CLC
     CMP HL+1
-    BCS cnt16skip1
+    BCC cnt16skip1
     JSR WrapRef
 cnt16skip1:
     CLC
     CMP HL+1
-    BCS cnt16skip2
+    BCC cnt16skip2
     RTS
 cnt16skip2:
     CLC
     ADC #$10
     STA A
     INC BC+1
-    JMP Cnt16s
+    JMP cnt16skip1
 
 
 FindRow:
@@ -1692,6 +1704,7 @@ FindRow:
 
 FindColumn:
     LDA $200a
+    STA A
     JSR Cnt16s
     SEC
     SBC #$10
@@ -1712,9 +1725,9 @@ GetAlienStatPtr:
     ADC BC+1
     SEC
     SBC #$01
-    STA HL+1
-    LDA $2067
     STA HL
+    LDA $2067
+    STA HL+1
     RTS
 
 
@@ -2422,6 +2435,17 @@ MessageAdv:
     .byte $28, $12, $02, $0E, $11, $04, $26, $00
     .byte $03, $15, $00, $0D, $02, $04, $26, $13
     .byte $00, $01, $0B, $04, $28
+
+    ; Alien reload score table
+    .byte $02, $10, $20, $30
+
+    ; "Tilt" Message
+    .byte $13, $08, $0b, $13
+
+    .org $1cc0
+    ;Alien exploding sprite
+    .byte $00, $08, $49, $22, $14, $81, $42, $00
+    .byte $42, $81, $14, $22, $49, $08, $00, $00
 
 
     .org $1cfa

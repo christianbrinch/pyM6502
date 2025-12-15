@@ -1,6 +1,5 @@
 import os
 import sys
-import threading
 import time
 
 import numpy as np
@@ -10,10 +9,12 @@ sys.path.append(os.path.abspath(".."))
 import mos6502
 
 WIDTH, HEIGHT = 256, 224
-SCANLINES = HEIGHT
-REFRESH_RATE = 60  # Hz
-FRAME_TIME = 1.0 / REFRESH_RATE  # Frame duration
-SCANLINE_TIME = FRAME_TIME / (SCANLINES + 38)  # 38 lines of vblank
+CPU_FREQ = 1_000_000  # 1 MHz 6502 (adjust if needed)
+FPS = 60
+
+CYCLES_PER_FRAME = CPU_FREQ // FPS
+CYCLES_PER_HALF_FRAME = CYCLES_PER_FRAME // 2
+
 
 KEY_MAP = {
     pygame.K_a: 0x20,
@@ -24,144 +25,100 @@ KEY_MAP = {
     pygame.K_SPACE: 0x10,
 }
 
-
 # Initialize Pygame
 pygame.init()
-# screen = pygame.display.set_mode((WIDTH, HEIGHT))
 screen = pygame.display.set_mode((HEIGHT, WIDTH))
 pygame.display.set_caption("SI")
-clock = pygame.time.Clock()
-
-# Load the ROM (shared resource)
-mem = mos6502.Memory(file="./si.rom")
-
-# Initialize CPU
-cpu = mos6502.Processor(mem)
-IRQ = False
-
-# Screen buffer 0x2400-0x3fff = 7168 bytes(shared resource)
-buffer_lock = threading.Lock()
 
 
-def cpu_step(cpu):
-    run = 1
-    global IRQ
-    flag = 0
-    while run:
-        # Emulate shift register
-        if cpu.memory[0x0061] > 0:
-            cpu.memory[0x0062] = (cpu.memory[0x0061] << cpu.memory[0x0060]) & 0xFF
-            cpu.memory[0x0063] = (cpu.memory[0x0061] << cpu.memory[0x0060]) >> 8
-            cpu.memory[0x0061] = 0x00
+def render_screen(framebuffer, mem):
+    for y in range(HEIGHT):
+        base_addr = 0x2400 + (32 * y)
 
-        if not IRQ:
-            # if cpu.program_counter == 0x020e:
-            #    cpu.exec(output=True, zeropage=True, mempage=0x20)
-            #    input()
-            if not (cpu.reg_p & 0x10):
-                cpu.exec(output=True, zeropage=True, mempage=0x20)
-                input()
-                # cpu.toggle(4, 1)
+        for i in range(32):
+            byte = mem[base_addr + i]
+            for bit in range(8):
+                x = i * 8 + bit
+                color = 255 if (byte & (1 << bit)) else 0
+                framebuffer[y, x] = (color, color, color)
 
-            else:
-                cpu.exec(output=False)
-
-        else:
-            # Write IRQ handler address to IRQ vector
-            cpu.write_word(0xFFFE, IRQ)
-            # Push PC to stack; high byte first, then low byte
-            cpu.write_byte(cpu.stack_pointer + 0x100, cpu.program_counter // 256)
-            cpu.stack_pointer -= 0x01
-            cpu.write_byte(cpu.stack_pointer + 0x100, cpu.program_counter % 256)
-            cpu.stack_pointer -= 0x01
-
-            # Push status flags
-            cpu.write_byte(cpu.stack_pointer + 0x100, cpu.reg_p)
-            cpu.stack_pointer -= 0x01
-
-            # Read interrupt vector at $fffe-$ffff
-            cpu.program_counter = cpu.read_word(0xFFFE)
-            IRQ = False
+    rotated = np.rot90(framebuffer, k=1)
+    pygame.surfarray.blit_array(screen, rotated.swapaxes(0, 1))
+    pygame.display.flip()
 
 
-def horizontal_scanning(mem):
-    """Function to render the screen buffer line by line (separate thread)."""
-    global IRQ
-    n = 0
-    q = []
-    intp = 0
-    while True:
-        n += 1
-        frame_start = time.time()
-        # screen.fill((0, 0, 0))  # Clear screen at start of frame; good approximation. CRT persistence time is 1-5 µs << ~16µs render time per frame
+class CRT:
+    def __init__(self):
+        self.cycle_counter = 0
+        self.half_irq_fired = False
 
-        for scanline in range(SCANLINES // 2):
-            # Simulate drawing one scanline, TOP OF THE SCREEN
-            base_addr = 0x2400 + (32 * scanline)
-            pixels = np.zeros((WIDTH, 3), dtype=np.uint8)
+    def timing(self, cpu, frame_cycles):
+        self.cycle_counter += frame_cycles
 
-            for i in range(32):
-                byte = mem[base_addr + i]
-                for bit in range(8):
-                    pixels[i * 8 + (bit)] = (
-                        255 if (byte & (1 << bit)) else 0
-                    )  # Reverse bit order
+        if (
+            self.cycle_counter >= CYCLES_PER_HALF_FRAME
+            and not (cpu.reg_p & 0x04)
+            and not self.half_irq_fired
+        ):
+            self.half_irq_fired = True
+            return 0x0C08
 
-            pygame.surfarray.pixels3d(screen)[scanline, :, :] = pixels[
-                ::-1
-            ]  # Rotate screen as per SI cabinet design
+        if self.cycle_counter >= CYCLES_PER_FRAME and not (cpu.reg_p & 0x04):
+            self.cycle_counter -= CYCLES_PER_FRAME
+            self.half_irq_fired = False
+            return 0x0C23
 
-        # Emulated interrupts
-        if not (cpu.reg_p & 0x04) and intp == 0 and not IRQ:
-            IRQ = 0x0C08
-            intp = 1
-
-        for scanline in range(SCANLINES // 2):
-            scanline += SCANLINES // 2
-            # Simulate drawing one scanline, BOTTOM OF THE SCREEN
-            base_addr = 0x2400 + (32 * scanline)
-            pixels = np.zeros((WIDTH, 3), dtype=np.uint8)
-
-            for i in range(32):
-                byte = mem[base_addr + i]
-                for bit in range(8):
-                    pixels[i * 8 + (bit)] = (
-                        255 if (byte & (1 << bit)) else 0
-                    )  # Reverse bit order
-
-            pygame.surfarray.pixels3d(screen)[scanline, :, :] = pixels[
-                ::-1
-            ]  # Rotate screen as per SI cabinet design
-
-        # Emulated interrupts
-        if not (cpu.reg_p & 0x04) and intp == 1 and not IRQ:
-            IRQ = 0x0C23
-            intp = 0
-
-        pygame.display.flip()
-        # while time.time() < frame_start + FRAME_TIME:
-        #    pass  # Ensure exact 60 Hz refresh
-        q += [time.time() - frame_start]
-
-    print(sum(q) / len(q))
+        return False
 
 
 def main():
-    clock_module = threading.Thread(
-        target=cpu_step,
-        args=(cpu,),
-        daemon=True,
-    )
-    clock_module.start()
-
-    screen_render = threading.Thread(
-        target=horizontal_scanning, args=(mem,), daemon=True
-    )
-    screen_render.start()
-
-    # Main Pygame loop
+    # Load the ROM (shared resource)
+    mem = mos6502.Memory(file="./si.rom")
+    # Initialize CPU
+    cpu = mos6502.Processor(mem)
+    crt = CRT()
     running = True
+    IRQ = False
+
     while running:
+        frame_cycles = 0
+        frame_start = time.perf_counter()
+        frame_ready = False
+        framebuffer = np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8)
+
+        while frame_cycles < CYCLES_PER_FRAME:
+            # Emulate shift register
+            if cpu.memory[0x0061] > 0:
+                cpu.memory[0x0062] = (cpu.memory[0x0061] << cpu.memory[0x0060]) & 0xFF
+                cpu.memory[0x0063] = (cpu.memory[0x0061] << cpu.memory[0x0060]) >> 8
+                cpu.memory[0x0061] = 0x00
+
+            cpu.exec(output=False)
+            frame_cycles += 1
+
+            IRQ = crt.timing(cpu, frame_cycles)
+            print(IRQ)
+
+            if IRQ:
+                # Write IRQ handler address to IRQ vector
+                cpu.write_word(0xFFFE, IRQ)
+                # Push PC to stack; high byte first, then low byte
+                cpu.write_byte(cpu.stack_pointer + 0x100, cpu.program_counter // 256)
+                cpu.stack_pointer -= 0x01
+                cpu.write_byte(cpu.stack_pointer + 0x100, cpu.program_counter % 256)
+                cpu.stack_pointer -= 0x01
+
+                # Push status flags
+                cpu.write_byte(cpu.stack_pointer + 0x100, cpu.reg_p)
+                cpu.stack_pointer -= 0x01
+
+                # Read interrupt vector at $fffe-$ffff
+                cpu.program_counter = cpu.read_word(0xFFFE)
+                frame_ready = True
+
+        if frame_ready:
+            render_screen(framebuffer, mem)
+
         mem[0x00A1] = 0x08
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -170,9 +127,12 @@ def main():
                 if event.key in KEY_MAP:
                     mem[0x00A1] += KEY_MAP[event.key]
 
-        clock.tick(60)  # Limit the main loop to 60 FPS
+        # Throttle to real time (optional but recommended)
+        elapsed = time.perf_counter() - frame_start
+        target = 1.0 / FPS
 
-    pygame.quit()
+        if elapsed < target:
+            time.sleep(target - elapsed)
 
 
 if __name__ == "__main__":

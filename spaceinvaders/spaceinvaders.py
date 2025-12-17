@@ -54,6 +54,7 @@ class CRT:
 
     def timing(self, cpu, cycles):
         self.cycles += cycles
+        self.video_status = 0
 
         if (
             self.cycles >= CYCLES_PER_HALF_FRAME
@@ -61,12 +62,14 @@ class CRT:
             and not self.half_fired
         ):
             self.half_fired = True
-            return 0x0C08
+            self.video_status = 0
+            return "midscreen"
 
         if self.cycles >= CYCLES_PER_FRAME and not (cpu.reg_p & 0x04):
             self.cycles = 0 #-= CYCLES_PER_FRAME
             self.half_fired = False
-            return 0x0C23
+            self.video_status = 1
+            return "vblank"
 
         return False
 
@@ -106,21 +109,25 @@ def main():
             IRQ = crt.timing(cpu, frame_cycles)
 
             if IRQ:
-                # Write IRQ handler address to IRQ vector
-                cpu.write_word(0xFFFE, IRQ)
+                cpu.memory[0x00af]=crt.video_status
+                cpu.raise_irq()
+                ## Write IRQ handler address to IRQ vector
+                #cpu.write_word(0xFFFE, IRQ)
+                
                 # Push PC to stack; high byte first, then low byte
-                cpu.write_byte(cpu.stack_pointer + 0x100, cpu.program_counter // 256)
-                cpu.stack_pointer -= 0x01
-                cpu.write_byte(cpu.stack_pointer + 0x100, cpu.program_counter % 256)
-                cpu.stack_pointer -= 0x01
+                #cpu.write_byte(cpu.stack_pointer + 0x100, cpu.program_counter // 256)
+                #cpu.stack_pointer -= 0x01
+                #cpu.write_byte(cpu.stack_pointer + 0x100, cpu.program_counter % 256)
+                #cpu.stack_pointer -= 0x01
 
                 # Push status flags
-                cpu.write_byte(cpu.stack_pointer + 0x100, cpu.reg_p)
-                cpu.stack_pointer -= 0x01
+                #cpu.write_byte(cpu.stack_pointer + 0x100, cpu.reg_p)
+                #cpu.stack_pointer -= 0x01
 
                 # Read interrupt vector at $fffe-$ffff
-                cpu.program_counter = cpu.read_word(0xFFFE)
-                frame_ready = True
+                #cpu.program_counter = cpu.read_word(0xFFFE)
+                if IRQ == "vblank":
+                    frame_ready = True
 
         if frame_ready:
             render_screen(framebuffer, mem)

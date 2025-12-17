@@ -29,6 +29,25 @@ INP1:
 INP2:
     .byte $00
 
+    .org $00af
+video_status:
+    .byte $00
+
+    .org $00b0
+irq_handler:
+    PHA
+    TXA
+    PHA
+    TYA
+    PHA
+    LDA video_status
+    BEQ mid_frame
+vblank:
+    JSR $0c23
+mid_frame:
+    JSR $0c08
+
+
 
     .org $0200
 RunGameObjs:
@@ -820,11 +839,11 @@ Reset:
 ScanLine96:
 ; midscreen interrupt (happens at scanline 128)
     SEI
-    PHA             ; Push all hardware registers
-    TXA
-    PHA
-    TYA
-    PHA
+    ;PHA             ; Push all hardware registers
+    ;TXA
+    ;PHA
+    ;TYA
+    ;PHA
 
     LDA DE          ; Push Software registers
     PHA
@@ -844,11 +863,11 @@ ScanLine96:
 ScanLine224:
 ; end-of-screen interrupt (happens at line 224)
     SEI
-    PHA             ; Push all hardware registers
-    TXA
-    PHA
-    TYA
-    PHA
+    ;PHA             ; Push all hardware registers
+    ;TXA
+    ;PHA
+    ;TYA
+    ;PHA
 
     LDA DE          ; Push Software registers
     PHA
@@ -2584,4 +2603,4 @@ MessageCredit:
 
     .org $fffc
     .word $0c00
-    .word $0000
+    .word irq_handler

@@ -140,6 +140,24 @@ class Processor:
         self.program_counter += 2
         return data
 
+    def raise_irq(self):
+        if self.reg_p & 0x04:
+            return
+        
+        self.write_byte(self.stack_pointer + 0x100, (self.program_counter >> 8) & 0xff)        
+        self.stack_pointer = (self.stack_pointer - 0x01) & 0xff
+        self.write_byte(self.stack_pointer + 0x100, self.program_counter & 0xff)
+        self.stack_pointer = (self.stack_pointer - 0x01) & 0xff
+
+        # Push status flags
+        self.write_byte(self.stack_pointer + 0x100, self.reg_p)
+        self.stack_pointer = (self.stack_pointer - 0x01) & 0xff
+
+        self.reg_p |= 0x04
+
+        # Read interrupt vector at $fffe-$ffff
+        self.program_counter = self.read_word(0xFFFE)
+
     ADDRESSING = [
         #  0  |  1   |  2   |  3   |  4   |  5   |  6   |  7   |  8   |  9   |  A   |  B   |  C   |  D   |  E   |  F   |
          "imp", "idx", "imp", "idx",  "zp",  "zp",  "zp",  "zp", "imp", "imm", "acc", "imm", "abs", "abs", "abs", "abs",  # 0

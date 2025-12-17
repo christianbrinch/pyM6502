@@ -153,7 +153,8 @@ class Processor:
         self.write_byte(self.stack_pointer + 0x100, self.reg_p)
         self.stack_pointer = (self.stack_pointer - 0x01) & 0xff
 
-        self.reg_p |= 0x04
+        #self.reg_p |= 0x04
+        self.toggle(2, True)
 
         # Read interrupt vector at $fffe-$ffff
         self.program_counter = self.read_word(0xFFFE)

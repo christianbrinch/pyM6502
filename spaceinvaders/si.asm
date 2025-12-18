@@ -43,9 +43,9 @@ irq_handler:
     LDA video_status
     BEQ mid_frame
 vblank:
-    JSR $0c23
+    JMP $0c23
 mid_frame:
-    JSR $0c08
+    JMP $0c08
 
 
 
@@ -839,12 +839,6 @@ Reset:
 ScanLine96:
 ; midscreen interrupt (happens at scanline 128)
     SEI
-    ;PHA             ; Push all hardware registers
-    ;TXA
-    ;PHA
-    ;TYA
-    ;PHA
-
     LDA DE          ; Push Software registers
     PHA
     LDA DE+1
@@ -863,11 +857,6 @@ ScanLine96:
 ScanLine224:
 ; end-of-screen interrupt (happens at line 224)
     SEI
-    ;PHA             ; Push all hardware registers
-    ;TXA
-    ;PHA
-    ;TYA
-    ;PHA
 
     LDA DE          ; Push Software registers
     PHA

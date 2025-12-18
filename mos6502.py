@@ -142,8 +142,10 @@ class Processor:
 
     def raise_irq(self):
         if self.reg_p & 0x04:
+            print("skipping IRQ")
             return
-        
+       
+        print("IRQ on")
         self.write_byte(self.stack_pointer + 0x100, (self.program_counter >> 8) & 0xff)        
         self.stack_pointer = (self.stack_pointer - 0x01) & 0xff
         self.write_byte(self.stack_pointer + 0x100, self.program_counter & 0xff)

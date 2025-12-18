@@ -52,11 +52,11 @@ class CRT:
         self.cycles = 0
         self.half_fired = False
 
-    def timing(self, cpu, cycles):
+    def timing(self, cycles):
         self.cycles += cycles
         self.video_status = 0
 
-        if self.cycles >= 30:  # CYCLES_PER_HALF_FRAME and not self.half_fired:
+        if self.cycles >= CYCLES_PER_HALF_FRAME and not self.half_fired:
             self.half_fired = True
             self.video_status = 0
             return "midscreen"
@@ -97,17 +97,14 @@ def main():
                 cpu.exec(output=True, zeropage=True, mempage=0x01)
                 input()
             else:
-                cpu.exec(output=True, zeropage=True, mempage=0x01)
-                input()
-                # cpu.exec(output=False)
+                cpu.exec(output=False)
 
-            frame_cycles = 10
+            frame_cycles = 5
             tmp += frame_cycles
 
-            IRQ = crt.timing(cpu, frame_cycles)
+            IRQ = crt.timing(frame_cycles)
 
             if IRQ:
-                print("irq raised")
                 cpu.memory[0x00AF] = crt.video_status
                 cpu.raise_irq()
                 if IRQ == "vblank":

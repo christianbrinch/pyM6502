@@ -26,9 +26,9 @@ KEY_MAP = {
 }
 
 # Initialize Pygame
-pygame.init()
-screen = pygame.display.set_mode((HEIGHT, WIDTH))
-pygame.display.set_caption("SI")
+#pygame.init()
+#screen = pygame.display.set_mode((HEIGHT, WIDTH))
+#pygame.display.set_caption("SI")
 
 
 def render_screen(framebuffer, mem):
@@ -56,7 +56,7 @@ class CRT:
         self.cycles += cycles
         self.video_status = 0
 
-        if self.cycles >= 30:  # CYCLES_PER_HALF_FRAME and not self.half_fired:
+        if self.cycles >= 100: #CYCLES_PER_HALF_FRAME and not self.half_fired:
             self.half_fired = True
             self.video_status = 0
             return "midscreen"
@@ -113,8 +113,8 @@ def main():
                 if IRQ == "vblank":
                     frame_ready = True
 
-        if frame_ready:
-            render_screen(framebuffer, mem)
+        #if frame_ready:
+        #    render_screen(framebuffer, mem)
 
         # for event in pygame.event.get():
         #    if event.type == pygame.QUIT:

@@ -31,7 +31,21 @@ screen = pygame.display.set_mode((HEIGHT, WIDTH))
 pygame.display.set_caption("SI")
 
 
-def render_screen(framebuffer, mem):
+def render_screen(mem):
+    # Create a (HEIGHT, 32*8) array from memory bytes
+    video_mem = np.array(mem[0x2400 : 0x2400 + 32 * HEIGHT], dtype=np.uint8)
+    video_mem = video_mem.reshape((HEIGHT, 32))
+
+    # Unpack bits into pixels (0 or 255)
+    framebuffer = np.unpackbits(video_mem, axis=1, bitorder="little")[:, ::-1] * 255
+
+    # Stack into 3 channels (RGB)
+    rgb_frame = np.stack([framebuffer] * 3, axis=2)
+
+    # Blit to screen
+    pygame.surfarray.blit_array(screen, rgb_frame)
+    pygame.display.flip()
+    """
     for y in range(HEIGHT):
         base_addr = 0x2400 + (32 * y)
 
@@ -45,6 +59,7 @@ def render_screen(framebuffer, mem):
     rotated = np.rot90(framebuffer, k=1)
     pygame.surfarray.blit_array(screen, rotated.swapaxes(0, 1))
     pygame.display.flip()
+    """
 
 
 class CRT:
@@ -71,14 +86,14 @@ class CRT:
 
 
 def main():
-    # Load the ROM (shared resource)
+    # Load the ROM
     mem = mos6502.Memory(file="./si.rom")
     # Initialize CPU
     cpu = mos6502.Processor(mem)
+    # Initialize the screen
     crt = CRT()
     running = True
     IRQ = False
-    framebuffer = np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8)
     target = 1.0 / FPS
 
     while running:
@@ -88,7 +103,6 @@ def main():
         tmp = 0
         frame_cycles = 5
 
-        print(frame_start)
         while tmp < CYCLES_PER_FRAME:
             # Emulate shift register
             if cpu.memory[0x0061] > 0:
@@ -96,13 +110,11 @@ def main():
                 cpu.memory[0x0063] = (cpu.memory[0x0061] << cpu.memory[0x0060]) >> 8
                 cpu.memory[0x0061] = 0x00
 
-            # if not (cpu.reg_p & 0x10):
-            #    cpu.exec(output=True, zeropage=True, mempage=0x01)
-            #    input()
-            # else:
-            #    cpu.exec(output=False)
-
-            cpu.exec(output=False)
+            if not (cpu.reg_p & 0x10):
+                cpu.exec(output=True, zeropage=True, mempage=0x01)
+                input()
+            else:
+                cpu.exec(output=False)
 
             tmp += frame_cycles
 
@@ -114,10 +126,8 @@ def main():
                 if IRQ == "vblank":
                     frame_ready = True
 
-        print(time.perf_counter() - frame_start)
-        input()
         if frame_ready:
-            render_screen(framebuffer, mem)
+            render_screen(mem)
 
         # for event in pygame.event.get():
         #    if event.type == pygame.QUIT:
@@ -129,8 +139,8 @@ def main():
         # Throttle to real time (optional but recommended)
         elapsed = time.perf_counter() - frame_start
 
-        # if elapsed < target:
-        #    time.sleep(target - elapsed)
+        if elapsed < target:
+            time.sleep(target - elapsed)
 
 
 if __name__ == "__main__":

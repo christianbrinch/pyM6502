@@ -31,24 +31,22 @@ class Memory:
         """Initialize the memory to size. Default to 64K bytes."""
 
         self.size = size
-        self.memory = [0] * size
+        self.memory = [0]*size
         if file:
             self.load_file(file, address)
         print(f"Memory initialized to {size} bytes.")
 
     def __getitem__(self, address: int):
         """Get the value at address."""
-        if 0x0000 < address > self.size:
-            raise ValueError("Memory address is not valid")
+        #if not (0x0000 <= address < self.size):
+        #    raise ValueError("Memory address is not valid")
         return self.memory[address]
 
     def __setitem__(self, address: int, value: int):
         """set address to value."""
-        if 0x0000 < address > self.size:
-            raise ValueError("Memory address is not valid")
-        if value.bit_length() > 8:
-            raise ValueError("Value too large")
-        self.memory[address] = value
+        #if not (0x0000 <= address < self.size):
+        #    raise ValueError("Memory address is not valid")
+        self.memory[address] = value 
         return self.memory[address]
 
     def load(self, program, address=0x0000):
@@ -85,6 +83,81 @@ class Processor:
 
         self.ins = instructions.Set()
         self.reset()
+
+        self.addressing_table = [
+        #  0  |  1   |  2   |  3   |  4   |  5   |  6   |  7   |  8   |  9   |  A   |  B   |  C   |  D   |  E   |  F   |
+         "imp", "idx", "imp", "idx",  "zp",  "zp",  "zp",  "zp", "imp", "imm", "acc", "imm", "abs", "abs", "abs", "abs",  # 0
+         "rel", "idy", "imp", "idy", "zpx", "zpx", "zpx", "zpx", "imp", "aby", "imp", "aby", "abx", "abx", "abx", "abx",  # 1
+         "abs", "idx", "imp", "idx",  "zp",  "zp",  "zp",  "zp", "imp", "imm", "acc", "imm", "abs", "abs", "abs", "abs",  # 2
+         "rel", "idy", "imp", "idy", "zpx", "zpx", "zpx", "zpx", "imp", "aby", "imp", "aby", "abx", "abx", "abx", "abx",  # 3
+         "imp", "idx", "imp", "idx",  "zp",  "zp",  "zp",  "zp", "imp", "imm", "acc", "imm", "abs", "abs", "abs", "abs",  # 4
+         "rel", "idy", "imp", "idy", "zpx", "zpx", "zpx", "zpx", "imp", "aby", "imp", "aby", "abx", "abx", "abx", "abx",  # 5
+         "imp", "idx", "imp", "idx",  "zp",  "zp",  "zp",  "zp", "imp", "imm", "acc", "imm", "ind", "abs", "abs", "abs",  # 6
+         "rel", "idy", "imp", "idy", "zpx", "zpx", "zpx", "zpx", "imp", "aby", "imp", "aby", "abx", "abx", "abx", "abx",  # 7
+         "imm", "idx", "imm", "idx",  "zp",  "zp",  "zp",  "zp", "imp", "imm", "imp", "imm", "abs", "abs", "abs", "abs",  # 8
+         "rel", "idy", "imp", "idy", "zpx", "zpx", "zpy", "zpy", "imp", "aby", "imp", "aby", "abx", "abx", "aby", "aby",  # 9
+         "imm", "idx", "imm", "idx",  "zp",  "zp",  "zp",  "zp", "imp", "imm", "imp", "imm", "abs", "abs", "abs", "abs",  # A
+         "rel", "idy", "imp", "idy", "zpx", "zpx", "zpy", "zpy", "imp", "aby", "imp", "aby", "abx", "abx", "aby", "aby",  # B
+         "imm", "idx", "imm", "idx",  "zp",  "zp",  "zp",  "zp", "imp", "imm", "imp", "imm", "abs", "abs", "abs", "abs",  # C
+         "rel", "idy", "imp", "idy", "zpx", "zpx", "zpx", "zpx", "imp", "aby", "imp", "aby", "abx", "abx", "abx", "abx",  # D
+         "imm", "idx", "imm", "idx",  "zp",  "zp",  "zp",  "zp", "imp", "imm", "imp", "imm", "abs", "abs", "abs", "abs",  # E
+         "rel", "idy", "imp", "idy", "zpx", "zpx", "zpx", "zpx", "imp", "aby", "imp", "aby", "abx", "abx", "abx", "abx",  # F
+        ]
+
+    # OP code table
+    #     0   |  1   |  2   |  3   |  4   |  5   |  6   |  7   |  8   |  9   |  A   |  B   |  C   |  D   |  E   |  F   |
+    #     "brk", "ora", "nop", "slo", "nop", "ora", "asl", "slo", "php", "ora", "asl", "nop", "nop", "ora", "asl", "slo",  # 0
+    #     "bpl", "ora", "nop", "slo", "nop", "ora", "asl", "slo", "clc", "ora", "nop", "slo", "nop", "ora", "asl", "slo",  # 1
+    #     "jsr", "AND", "nop", "rla", "bit", "AND", "rol", "rla", "plp", "AND", "rol", "nop", "bit", "AND", "rol", "rla",  # 2
+    #     "bmi", "AND", "nop", "rla", "nop", "AND", "rol", "rla", "sec", "AND", "nop", "rla", "nop", "AND", "rol", "rla",  # 3
+    #     "rti", "eor", "nop", "sre", "nop", "eor", "lsr", "sre", "pha", "eor", "lsr", "nop", "jmp", "eor", "lsr", "sre",  # 4
+    #     "bvc", "eor", "nop", "sre", "nop", "eor", "lsr", "sre", "cli", "eor", "nop", "sre", "nop", "eor", "lsr", "sre",  # 5
+    #     "rts", "adc", "nop", "rra", "nop", "adc", "ror", "rra", "pla", "adc", "ror", "nop", "jmp", "adc", "ror", "rra",  # 6
+    #     "bvs", "adc", "nop", "rra", "nop", "adc", "ror", "rra", "sei", "adc", "nop", "rra", "nop", "adc", "ror", "rra",  # 7
+    #     "nop", "sta", "nop", "sax", "sty", "sta", "stx", "sax", "dey", "nop", "txa", "nop", "sty", "sta", "stx", "sax",  # 8
+    #     "bcc", "sta", "nop", "nop", "sty", "sta", "stx", "sax", "tya", "sta", "txs", "nop", "nop", "sta", "nop", "nop",  # 9
+    #     "ldy", "lda", "ldx", "lax", "ldy", "lda", "ldx", "lax", "tay", "lda", "tax", "nop", "ldy", "lda", "ldx", "lax",  # A
+    #     "bcs", "lda", "nop", "lax", "ldy", "lda", "ldx", "lax", "clv", "lda", "tsx", "lax", "ldy", "lda", "ldx", "lax",  # B
+    #     "cpy", "cmp", "nop", "dcp", "cpy", "cmp", "dec", "dcp", "iny", "cmp", "dex", "nop", "cpy", "cmp", "dec", "dcp",  # C
+    #     "bne", "cmp", "nop", "dcp", "nop", "cmp", "dec", "dcp", "cld", "cmp", "nop", "dcp", "nop", "cmp", "dec", "dcp",  # D
+    #     "cpx", "sbc", "nop", "isb", "cpx", "sbc", "inc", "isb", "inx", "sbc", "nop", "sbc", "cpx", "sbc", "inc", "isb",  # E
+    #     "beq", "sbc", "nop", "isb", "nop", "sbc", "inc", "isb", "sed", "sbc", "nop", "isb", "nop", "sbc", "inc", "isb",  # F
+   
+        self.opcode_table = [
+            self.ins.brk, self.ins.ora, self.ins.nop, self.ins.slo, self.ins.nop, self.ins.ora, self.ins.asl, self.ins.slo, # 0
+            self.ins.php, self.ins.ora, self.ins.asl, self.ins.nop, self.ins.nop, self.ins.ora, self.ins.asl, self.ins.slo,
+            self.ins.bpl, self.ins.ora, self.ins.nop, self.ins.slo, self.ins.nop, self.ins.ora, self.ins.asl, self.ins.slo, # 1
+            self.ins.clc, self.ins.ora, self.ins.nop, self.ins.slo, self.ins.nop, self.ins.ora, self.ins.asl, self.ins.slo,
+            self.ins.jsr, self.ins.AND, self.ins.nop, self.ins.rla, self.ins.bit, self.ins.AND, self.ins.rol, self.ins.rla, # 2
+            self.ins.plp, self.ins.AND, self.ins.rol, self.ins.nop, self.ins.bit, self.ins.AND, self.ins.rol, self.ins.rla,
+            self.ins.bmi, self.ins.AND, self.ins.nop, self.ins.rla, self.ins.nop, self.ins.AND, self.ins.rol, self.ins.rla, # 3
+            self.ins.sec, self.ins.AND, self.ins.nop, self.ins.rla, self.ins.nop, self.ins.AND, self.ins.rol, self.ins.rla,
+            self.ins.rti, self.ins.eor, self.ins.nop, self.ins.sre, self.ins.nop, self.ins.eor, self.ins.lsr, self.ins.sre, # 4
+            self.ins.pha, self.ins.eor, self.ins.lsr, self.ins.nop, self.ins.jmp, self.ins.eor, self.ins.lsr, self.ins.sre,
+            self.ins.bvc, self.ins.eor, self.ins.nop, self.ins.sre, self.ins.nop, self.ins.eor, self.ins.lsr, self.ins.sre, # 5
+            self.ins.cli, self.ins.eor, self.ins.nop, self.ins.sre, self.ins.nop, self.ins.eor, self.ins.lsr, self.ins.sre,
+            self.ins.rts, self.ins.adc, self.ins.nop, self.ins.rra, self.ins.nop, self.ins.adc, self.ins.ror, self.ins.rra, # 6
+            self.ins.pla, self.ins.adc, self.ins.ror, self.ins.nop, self.ins.jmp, self.ins.adc, self.ins.ror, self.ins.rra,
+            self.ins.bvs, self.ins.adc, self.ins.nop, self.ins.rra, self.ins.nop, self.ins.adc, self.ins.ror, self.ins.rra, # 7
+            self.ins.sei, self.ins.adc, self.ins.nop, self.ins.rra, self.ins.nop, self.ins.adc, self.ins.ror, self.ins.rra,
+            self.ins.nop, self.ins.sta, self.ins.nop, self.ins.sax, self.ins.sty, self.ins.sta, self.ins.stx, self.ins.sax, # 8
+            self.ins.dey, self.ins.nop, self.ins.txa, self.ins.nop, self.ins.sty, self.ins.sta, self.ins.stx, self.ins.sax,
+            self.ins.bcc, self.ins.sta, self.ins.nop, self.ins.nop, self.ins.sty, self.ins.sta, self.ins.stx, self.ins.sax, # 9
+            self.ins.tya, self.ins.sta, self.ins.txs, self.ins.nop, self.ins.nop, self.ins.sta, self.ins.nop, self.ins.nop,
+            self.ins.ldy, self.ins.lda, self.ins.ldx, self.ins.lax, self.ins.ldy, self.ins.lda, self.ins.ldx, self.ins.lax, # A
+            self.ins.tay, self.ins.lda, self.ins.tax, self.ins.nop, self.ins.ldy, self.ins.lda, self.ins.ldx, self.ins.lax,
+            self.ins.bcs, self.ins.lda, self.ins.nop, self.ins.lax, self.ins.ldy, self.ins.lda, self.ins.ldx, self.ins.lax, # B
+            self.ins.clv, self.ins.lda, self.ins.tsx, self.ins.lax, self.ins.ldy, self.ins.lda, self.ins.ldx, self.ins.lax,
+            self.ins.cpy, self.ins.cmp, self.ins.nop, self.ins.dcp, self.ins.cpy, self.ins.cmp, self.ins.dec, self.ins.cdp, # C
+            self.ins.iny, self.ins.cmp, self.ins.dex, self.ins.nop, self.ins.cpy, self.ins.cmp, self.ins.dec, self.ins.dcp,
+            self.ins.bne, self.ins.cmp, self.ins.nop, self.ins.dcp, self.ins.nop, self.ins.cmp, self.ins.dec, self.ins.dcp, # D
+            self.ins.cld, self.ins.cmp, self.ins.nop, self.ins.dcp, self.ins.nop, self.ins.cmp, self.ins.dec, self.ins.dcp,
+            self.ins.cpx, self.ins.sbc, self.ins.nop, self.ins.isb, self.ins.cpx, self.ins.sbc, self.ins.inc, self.ins.isb, # E
+            self.ins.inx, self.ins.sbc, self.ins.nop, self.ins.sbc, self.ins.cpx, self.ins.sbc, self.ins.inc, self.ins.isb,
+            self.ins.beq, self.ins.sbc, self.ins.nop, self.ins.isb, self.ins.nop, self.ins.sbc, self.ins.inc, self.ins.isb, # F
+            self.ins.sed, self.ins.sbc, self.ins.nop, self.ins.isb, self.ins.nop, self.ins.sbc, self.ins.inc, self.ins.isb,
+        ]
+
 
     def reset(self):
         """Reset processor. Program counter is initialized to FCE2 and
@@ -161,57 +234,15 @@ class Processor:
         # Read interrupt vector at $fffe-$ffff
         self.program_counter = self.read_word(0xFFFE)
 
-    ADDRESSING = [
-        #  0  |  1   |  2   |  3   |  4   |  5   |  6   |  7   |  8   |  9   |  A   |  B   |  C   |  D   |  E   |  F   |
-         "imp", "idx", "imp", "idx",  "zp",  "zp",  "zp",  "zp", "imp", "imm", "acc", "imm", "abs", "abs", "abs", "abs",  # 0
-         "rel", "idy", "imp", "idy", "zpx", "zpx", "zpx", "zpx", "imp", "aby", "imp", "aby", "abx", "abx", "abx", "abx",  # 1
-         "abs", "idx", "imp", "idx",  "zp",  "zp",  "zp",  "zp", "imp", "imm", "acc", "imm", "abs", "abs", "abs", "abs",  # 2
-         "rel", "idy", "imp", "idy", "zpx", "zpx", "zpx", "zpx", "imp", "aby", "imp", "aby", "abx", "abx", "abx", "abx",  # 3
-         "imp", "idx", "imp", "idx",  "zp",  "zp",  "zp",  "zp", "imp", "imm", "acc", "imm", "abs", "abs", "abs", "abs",  # 4
-         "rel", "idy", "imp", "idy", "zpx", "zpx", "zpx", "zpx", "imp", "aby", "imp", "aby", "abx", "abx", "abx", "abx",  # 5
-         "imp", "idx", "imp", "idx",  "zp",  "zp",  "zp",  "zp", "imp", "imm", "acc", "imm", "ind", "abs", "abs", "abs",  # 6
-         "rel", "idy", "imp", "idy", "zpx", "zpx", "zpx", "zpx", "imp", "aby", "imp", "aby", "abx", "abx", "abx", "abx",  # 7
-         "imm", "idx", "imm", "idx",  "zp",  "zp",  "zp",  "zp", "imp", "imm", "imp", "imm", "abs", "abs", "abs", "abs",  # 8
-         "rel", "idy", "imp", "idy", "zpx", "zpx", "zpy", "zpy", "imp", "aby", "imp", "aby", "abx", "abx", "aby", "aby",  # 9
-         "imm", "idx", "imm", "idx",  "zp",  "zp",  "zp",  "zp", "imp", "imm", "imp", "imm", "abs", "abs", "abs", "abs",  # A
-         "rel", "idy", "imp", "idy", "zpx", "zpx", "zpy", "zpy", "imp", "aby", "imp", "aby", "abx", "abx", "aby", "aby",  # B
-         "imm", "idx", "imm", "idx",  "zp",  "zp",  "zp",  "zp", "imp", "imm", "imp", "imm", "abs", "abs", "abs", "abs",  # C
-         "rel", "idy", "imp", "idy", "zpx", "zpx", "zpx", "zpx", "imp", "aby", "imp", "aby", "abx", "abx", "abx", "abx",  # D
-         "imm", "idx", "imm", "idx",  "zp",  "zp",  "zp",  "zp", "imp", "imm", "imp", "imm", "abs", "abs", "abs", "abs",  # E
-         "rel", "idy", "imp", "idy", "zpx", "zpx", "zpx", "zpx", "imp", "aby", "imp", "aby", "abx", "abx", "abx", "abx",  # F
-    ]
+   
 
-    OPCODES = [
-        #  0  |  1   |  2   |  3   |  4   |  5   |  6   |  7   |  8   |  9   |  A   |  B   |  C   |  D   |  E   |  F   |
-         "brk", "ora", "nop", "slo", "nop", "ora", "asl", "slo", "php", "ora", "asl", "nop", "nop", "ora", "asl", "slo",  # 0
-         "bpl", "ora", "nop", "slo", "nop", "ora", "asl", "slo", "clc", "ora", "nop", "slo", "nop", "ora", "asl", "slo",  # 1
-         "jsr", "AND", "nop", "rla", "bit", "AND", "rol", "rla", "plp", "AND", "rol", "nop", "bit", "AND", "rol", "rla",  # 2
-         "bmi", "AND", "nop", "rla", "nop", "AND", "rol", "rla", "sec", "AND", "nop", "rla", "nop", "AND", "rol", "rla",  # 3
-         "rti", "eor", "nop", "sre", "nop", "eor", "lsr", "sre", "pha", "eor", "lsr", "nop", "jmp", "eor", "lsr", "sre",  # 4
-         "bvc", "eor", "nop", "sre", "nop", "eor", "lsr", "sre", "cli", "eor", "nop", "sre", "nop", "eor", "lsr", "sre",  # 5
-         "rts", "adc", "nop", "rra", "nop", "adc", "ror", "rra", "pla", "adc", "ror", "nop", "jmp", "adc", "ror", "rra",  # 6
-         "bvs", "adc", "nop", "rra", "nop", "adc", "ror", "rra", "sei", "adc", "nop", "rra", "nop", "adc", "ror", "rra",  # 7
-         "nop", "sta", "nop", "sax", "sty", "sta", "stx", "sax", "dey", "nop", "txa", "nop", "sty", "sta", "stx", "sax",  # 8
-         "bcc", "sta", "nop", "nop", "sty", "sta", "stx", "sax", "tya", "sta", "txs", "nop", "nop", "sta", "nop", "nop",  # 9
-         "ldy", "lda", "ldx", "lax", "ldy", "lda", "ldx", "lax", "tay", "lda", "tax", "nop", "ldy", "lda", "ldx", "lax",  # A
-         "bcs", "lda", "nop", "lax", "ldy", "lda", "ldx", "lax", "clv", "lda", "tsx", "lax", "ldy", "lda", "ldx", "lax",  # B
-         "cpy", "cmp", "nop", "dcp", "cpy", "cmp", "dec", "dcp", "iny", "cmp", "dex", "nop", "cpy", "cmp", "dec", "dcp",  # C
-         "bne", "cmp", "nop", "dcp", "nop", "cmp", "dec", "dcp", "cld", "cmp", "nop", "dcp", "nop", "cmp", "dec", "dcp",  # D
-         "cpx", "sbc", "nop", "isb", "cpx", "sbc", "inc", "isb", "inx", "sbc", "nop", "sbc", "cpx", "sbc", "inc", "isb",  # E
-         "beq", "sbc", "nop", "isb", "nop", "sbc", "inc", "isb", "sed", "sbc", "nop", "isb", "nop", "sbc", "inc", "isb",  # F
-    ]
 
     def exec(self, cycles: int = 0, output=False, zeropage=False, mempage=0):
         opcode = self.fetch_byte()
 
-        eval(
-            "self.ins."
-            + self.OPCODES[opcode]
-            + '(self, "'
-            + self.ADDRESSING[opcode]
-            + '")'
-        )
-
+        instr = self.opcode_table[opcode]
+        mode = self.addressing_table[opcode]
+        instr(self, mode)
 
         if output:
             t = self.program_counter

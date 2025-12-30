@@ -161,7 +161,6 @@ GO0normalmovement:
     INC HL
     LDA (HL), Y
     AND (HL), Y
-    ;CMP #$00
     JMP GO0enableshots
 
 GO0346:
@@ -175,7 +174,6 @@ GO034a:
     STA BC
     LDA $20ef
     AND $20ef
-    ;CMP #$00
     BNE GO0363
     LDA $201d
     CLC

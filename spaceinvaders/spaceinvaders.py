@@ -79,13 +79,16 @@ def main():
     running = True
     IRQ = False
     framebuffer = np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8)
+    target = 1.0 / FPS
 
     while running:
         frame_cycles = 0
         frame_start = time.perf_counter()
         frame_ready = False
         tmp = 0
+        frame_cycles = 5
 
+        print(frame_start)
         while tmp < CYCLES_PER_FRAME:
             # Emulate shift register
             if cpu.memory[0x0061] > 0:
@@ -93,13 +96,14 @@ def main():
                 cpu.memory[0x0063] = (cpu.memory[0x0061] << cpu.memory[0x0060]) >> 8
                 cpu.memory[0x0061] = 0x00
 
-            if not (cpu.reg_p & 0x10):
-                cpu.exec(output=True, zeropage=True, mempage=0x01)
-                input()
-            else:
-                cpu.exec(output=False)
+            # if not (cpu.reg_p & 0x10):
+            #    cpu.exec(output=True, zeropage=True, mempage=0x01)
+            #    input()
+            # else:
+            #    cpu.exec(output=False)
 
-            frame_cycles = 5
+            # cpu.exec(output=False)
+
             tmp += frame_cycles
 
             IRQ = crt.timing(frame_cycles)
@@ -110,6 +114,8 @@ def main():
                 if IRQ == "vblank":
                     frame_ready = True
 
+        print(time.perf_counter() - frame_start)
+        input()
         if frame_ready:
             render_screen(framebuffer, mem)
 
@@ -122,10 +128,9 @@ def main():
 
         # Throttle to real time (optional but recommended)
         elapsed = time.perf_counter() - frame_start
-        target = 1.0 / FPS
 
-        if elapsed < target:
-            time.sleep(target - elapsed)
+        # if elapsed < target:
+        #    time.sleep(target - elapsed)
 
 
 if __name__ == "__main__":

@@ -142,10 +142,10 @@ class Processor:
 
     def raise_irq(self):
         if self.reg_p & 0x04:
-            print("skipping IRQ")
+            #print("skipping IRQ")
             return
        
-        print("IRQ on")
+        #print("IRQ on")
         self.write_byte(self.stack_pointer + 0x100, (self.program_counter >> 8) & 0xff)        
         self.stack_pointer = (self.stack_pointer - 0x01) & 0xff
         self.write_byte(self.stack_pointer + 0x100, self.program_counter & 0xff)
@@ -202,9 +202,7 @@ class Processor:
     ]
 
     def exec(self, cycles: int = 0, output=False, zeropage=False, mempage=0):
-        t = self.program_counter
         opcode = self.fetch_byte()
-        tmp = [t + k for k in range(self.program_counter - t)]
 
         eval(
             "self.ins."
@@ -214,9 +212,10 @@ class Processor:
             + '")'
         )
 
-        tmp = [t + k for k in range(self.program_counter - t)]
 
         if output:
+            t = self.program_counter
+            tmp = [t + k for k in range(self.program_counter - t)]
             print()
             print(
                 f"{Fore.CYAN}PC{Style.RESET_ALL} 0x{self.program_counter:0>04x} "

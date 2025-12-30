@@ -102,7 +102,7 @@ def main():
             # else:
             #    cpu.exec(output=False)
 
-            # cpu.exec(output=False)
+            cpu.exec(output=False)
 
             tmp += frame_cycles
 

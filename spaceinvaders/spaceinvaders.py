@@ -45,21 +45,6 @@ def render_screen(mem):
     # Blit to screen
     pygame.surfarray.blit_array(screen, rgb_frame)
     pygame.display.flip()
-    """
-    for y in range(HEIGHT):
-        base_addr = 0x2400 + (32 * y)
-
-        for i in range(32):
-            byte = mem[base_addr + i]
-            for bit in range(8):
-                x = i * 8 + bit
-                color = 255 if (byte & (1 << bit)) else 0
-                framebuffer[y, x] = (color, color, color)
-
-    rotated = np.rot90(framebuffer, k=1)
-    pygame.surfarray.blit_array(screen, rotated.swapaxes(0, 1))
-    pygame.display.flip()
-    """
 
 
 class CRT:
@@ -95,6 +80,7 @@ def main():
     running = True
     IRQ = False
     target = 1.0 / FPS
+    qc = 0
 
     while running:
         frame_cycles = 0
@@ -111,8 +97,10 @@ def main():
                 cpu.memory[0x0061] = 0x00
 
             if not (cpu.reg_p & 0x10):
-                cpu.exec(output=True, zeropage=True, mempage=0x01)
+                # print(f"{cpu.reg_p:>08b}")
+                cpu.exec(output=True, zeropage=True, mempage=0x20)
                 input()
+                # cpu.reg_p |= 0x10
             else:
                 cpu.exec(output=False)
 

@@ -214,10 +214,17 @@ class Set:
         """Rotate bits to the right"""
         addr, value = self.addressing[mode](obj)
         p = obj.reg_p
-        carry = p & 0x01  # Hold carry
-        p = (p & ~0x01) | (value & 0x80) >> 7  # toggle C
-        value = (value >> 1) | carry * 0x80
-        p = (p & ~0x82) | ((not value) * 0x02) | (value & 0x80)  # Toggle Z and N
+        carry_in = p & 0x01  # Hold carry
+        carry_out = value & 0x01
+        value = (value >> 1) | (carry_in << 7)
+
+        p = (
+            p & ~0x83  # clear C, Z, N
+            | carry_out  # C
+            | ((value == 0) << 1)  # Z
+            | (value & 0x80)  # N
+        )
+
         obj.reg_p = p
         if mode == "acc":
             obj.reg_a = value
@@ -229,7 +236,7 @@ class Set:
     def AND(self, obj, mode):
         """Logical AND with accumulator &"""
         _, value = self.addressing[mode](obj)
-        a = obj.reg_a & value
+        a = (obj.reg_a & value) & 0xFF
         p = obj.reg_p
         p = (p & ~0x82) | ((a == 0) << 1) | (a & 0x80)
         obj.reg_p = p

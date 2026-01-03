@@ -247,28 +247,29 @@ GO0enableshots:
     .org $03bb ; This address is pointed to in RAM, so don't change unless RAM is changed too
 GameObj1:
 ; Game object 1: Move/draw the player shot
-    LDA $202a
-    STA DE
-    JSR CompYToBeam
+    ;LDA $202a           ; This...
+    ;STA DE              ; is...
+    ;JSR CompYToBeam     ; not correct! FIX carry set
+    SEC                 ; Setting carry manually to process shot
     PLA
     STA HL+1
     PLA
     STA HL
     BCS GO1skip
     RTS
-GO1skip:
-    INC HL
-    LDA (HL), Y
-    STA A
-    AND A
-    BNE GO1skip2
-    RTS
-GO1skip2:
-    CMP #$01
-    BEQ InitPlyShot
 
-    CMP #$02
-    BEQ MovePlyShot
+GO1skip:
+    INC HL              ; Point to $2025, shot status
+    LDA (HL), Y         ; Load shot status...
+    AND (HL), Y         ; and return...
+    BNE GO1skip2        ; if...
+    RTS                 ; 0 (shot is available)
+GO1skip2:
+    CMP #$01            ; Is a shot just starting?
+    BEQ InitPlyShot     ; If yes, then go initate shot
+
+    CMP #$02            ; Is a shot moving normally?
+    BEQ MovePlyShot     ; if yes, then go move the shot
 
     INC HL
     CMP #$03
@@ -407,15 +408,13 @@ EndOfBlowup:
     STA HL
     INC HL
     LDA HL
-    CMP #$63
+    CMP #$63            ; Here is a code bug
     BCS GO1skip6
     LDA #$54
     STA HL
 GO1skip6:
     STA $208d
-    LDX $208f
-    INX
-    STX $208f
+    INC $208f
     LDA $2084
     AND $2084
     BEQ GO1skip7
@@ -1381,7 +1380,11 @@ DShSskip:
 
 EraseSimpleSprite:
     LDY #$00
+    TXA
+    PHA
     JSR CnvtPixNumber
+    PLA
+    TAX
 ESSloop:
     LDA HL
     PHA
@@ -1597,24 +1600,25 @@ PSHskip3:
 
 CodeBug1:
 ; This is where we hit an alien
-    ;BRK
-    ;SEI
     LDA BC
     STA HL
-    JSR FindRow
+    JSR FindRow     ; Returns coordinate in HL and row number in B
+
     LDA $202a
     STA HL+1
-    JSR FindColumn
-    LDA HL+1
-    STA $2065
-    LDA HL
-    STA $2064
-    LDA #$05
-    STA $2025
+    JSR FindColumn  ; Returns coordinate in HL+1 and column number in C
+
+    LDA HL+1        ; Put...
+    STA $2065       ; HL...
+    LDA HL          ; in...
+    STA $2064       ; $2064-$2065
+    LDA #$05        ; 5 means alien explosion
+    STA $2025       ; in progress
     JSR GetAlienStatPtr
+
+    LDY #$00
     LDA (HL),Y
-    STA A
-    AND A
+    AND (HL), Y
     BNE CodeBugSkip
     JMP ShotLeaving
 CodeBugSkip:
@@ -1642,19 +1646,12 @@ MarkSaucerHit:
 
 AExplodeTime:
 ; Time down the alien explosion. Remove when done.
-    LDY #$00
-    LDA #$03
-    STA HL
-    LDA #$20
-    STA HL+1
-    LDA (HL), Y
-    TAX
-    DEX
-    TXA
-    STA (HL), Y
-    BEQ AExplodeDone
+    DEC $2003
+    BNE AExplodeDone
     LDA $2064
     STA HL
+    LDA $2065
+    STA HL+1
     LDX #$10
     JSR EraseSimpleSprite
 AETout1:
@@ -1693,7 +1690,7 @@ cnt16skip2:
 
 FindRow:
 ; HL contains an Yr coordinate. Find the corresponding row.
-; return row coordinate in HL and row number in C
+; return row coordinate in HL and row number in B
     LDA $2009       ; Load ref alien x coord...
     STA A           ; ... and save it for now
     LDA HL          ; Move low byte...
@@ -1968,7 +1965,7 @@ DATloop:
     BCS DATmoveon
     JSR Draw16ByteSprite
     JMP DATloop
-;
+
     JSR OneSecDelay   ; This line of code is never reached
 DATmoveon:
     LDA #$cf

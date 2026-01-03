@@ -233,7 +233,6 @@ class Processor:
 
         # Read interrupt vector at $fffe-$ffff
         self.program_counter = self.read_word(0xFFFE)
-
    
 
 
@@ -258,7 +257,7 @@ class Processor:
                 f"{self.reg_p:>08b}"
                 f"{' ' * 11}"
                 f"{Fore.CYAN}OPcode{Style.RESET_ALL} 0x{Fore.YELLOW}{opcode:0>2x}{Style.RESET_ALL} "
-                f"{self.OPCODES[opcode]}:{self.ADDRESSING[opcode]}"
+                f"{str(self.opcode_table[opcode]).split(' ')[2].split('.')[-1]}:{self.addressing_table[opcode]}"
             )
 
             print()

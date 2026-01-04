@@ -449,10 +449,57 @@ GO1skip8:
 GameObj2:
 ; Game object 2: Alien rolling-shot (targets player specifically)
     PLA
+    STA HL+1
     PLA
+    STA HL
+    LDA $1b32       ; Restore delay from...
+    STA $2032       ; ROM to RAM
+    LDA $2038       ; Get...
+    STA HL          ; pointer...
+    LDA $2039       ; to
+    STA HL+1        ; column-fire table
+    LDA HL
+    EOR HL+1
+    BNE GO2Fire
+    DEC HL
+    LDA HL
+    STA $2038
+    LDA HL+1
+    STA $2039
     RTS
+GO2Fire:
+    LDA #$35
+    STA DE
+    LDA #$20
+    STA DE+1
+    LDA #$f9
+    JSR ToShotStruct
+    LDA $2046
+    STA $2070
+    LDA $2056
+    STA $2071
+    JSR HandleAlienShot
+    LDA #$35
+    STA HL
+    LDA #$20
+    STA HL+1
+    LDA $2078
+    AND $2078
+    BEQ GO2resetShot
+    JMP FromShotStruct
+GO2resetShot:
+    LDA #$30
+    STA DE
+    LDA #$1b
+    STA DE+1
+    LDA #$23
+    STA HL
+    LDA #$20
+    STA HL+1
+    LDX #$10
+    JMP BlockCopy
 
-    .org $0513 ; was $04b6 ; This address is pointed to in RAM, so don't change unless RAM is changed too
+    .org $057d ; was $04b6 ; This address is pointed to in RAM, so don't change unless RAM is changed too
 GameObj3:
 ; Game object 3: Alien plunger-shot
 ; This is skipped if there is only one alien left on the screen.
@@ -460,7 +507,274 @@ GameObj3:
     PLA
     RTS
 
-    .org $0682 ; This address is pointed to in RAM, so don't change unless RAM is changed too
+ToShotStruct:
+    STA $207f
+    LDA #$73
+    STA HL
+    LDA #$20
+    STA HL+1
+    LDX #$0b
+    JMP BlockCopy
+
+FromShotStruct:
+    LDA #$73
+    STA DE
+    LDA #$20
+    STA DE+1
+    LDX #$0b
+    JMP BlockCopy
+
+HandleAlienShot:
+    LDY #$00
+    LDA #$73
+    STA HL
+    LDA #$20
+    STA HL+1
+    LDA (HL), Y
+    AND #$80
+    BNE MoveAlienShottramboline
+
+    LDA $20c1
+    CMP #$04
+    LDA $2069
+    BEQ HAS05b7
+    AND $2069
+    BNE HASskip1
+    RTS
+HASskip1:
+    INC HL
+    LDA #$00
+    STA (HL), Y
+
+    LDA $2070
+    AND $2070
+    BEQ HASskip2
+    STA TMP
+    LDA $20cf
+    CMP TMP
+    BCS HASskip2
+    RTS
+HASskip2:
+    LDA $2071
+    AND $2071
+    BEQ HASskip3
+    STA TMP
+    LDA $20cf
+    CMP TMP
+    BCS HASskip3
+    RTS
+HASskip3:
+    INC HL
+    LDA (HL), Y
+    AND (HL), Y
+    BEQ ShootOnPlayertramp
+    LDA $2076
+    STA HL
+    LDA (HL), Y
+    STA BC
+    INC HL
+    LDA HL
+    STA $2076
+MASreturn:
+    JSR FindInColumn
+    BCS HASskip4
+    RTS
+HASskip4:
+    JSR GetAlienCoords
+    LDA BC
+    ADC #$07
+    STA HL+1
+    LDA HL
+    SEC
+    SBC $0a
+    STA HL
+    LDA HL+1
+    STA $207b
+    LDA HL
+    STA $207c
+
+MoveAlienShottramboline:
+    JMP MoveAlienShot
+
+HAS05b7:
+    LDA #$73
+    STA HL
+    LDA #$20
+    STA HL+1
+    LDA (HL), Y
+    EOR #$80
+    STA (HL), Y
+    INC HL
+    LDA (HL), Y
+    ADC #$01
+    STA (HL), Y
+    RTS
+
+MASreturntramp:
+    JMP MASreturn
+
+ShootOnPlayertramp:
+    JMP ShootOnPlayer
+
+MoveAlienShot:
+    ;LDA #$7c           ; This is the CompYToBeam stuff (also in GameObj1)
+    ;STA DE             ; It needs to be fixed. Does not work currently.
+    ;LDA #$20
+    ;STA DE+1
+    ;JSR CompYToBeam
+    ;BCS MASskip1
+    ;RTS
+MASskip1:
+    INC HL
+    LDA (HL), Y
+    AND #$01
+    BNE ShotBlowingUptramp
+    INC HL
+    LDA (HL), Y
+    ADC #$01
+    STA (HL), Y
+    JSR EraseShot
+    LDA $2079
+    ADC #$03
+    STA TMP
+    LDA #$7F
+    STA HL
+    LDA #$20
+    STA HL+1
+    LDA TMP
+    CMP (HL), Y
+    BCS MASskip2
+    SEC
+    SBC #$0c
+MASskip2:
+    STA $2079
+    LDA $207b
+    STA BC
+    LDA $207e
+    ADC BC
+    STA $207b
+    JSR DrawShot
+    LDA $207b
+    CMP #$15
+    BCS FlagShot
+    LDA $2061
+    AND $2061
+    BNE MASskip3
+    RTS
+MASskip3:
+    LDA $207b
+    CMP #$1e
+    BCS FlagShot
+    CMP #$27
+    BCC FlagShot
+    LDA #$00
+    STA $2015
+
+ShotBlowingUptramp:
+    JMP ShotBlowingUp
+
+FlagShot:
+    LDA $2073
+    EOR #$01
+    STA $2073
+    RTS
+
+ShootOnPlayer:
+    LDA $201b
+    ADC #$08
+    STA HL+1
+    JSR FindColumn
+    LDA BC+1
+    CMP #$0c
+    BCS MASreturntramp
+    LDA #$0b
+    STA BC+1
+    JMP MASreturntramp
+
+FindInColumn:
+    DEC BC+1
+    LDA $2067
+    STA HL+1
+    LDA BC+1
+    STA HL
+    LDA #$05
+    STA DE
+FICloop:
+    LDA (HL), Y
+    AND (HL), Y
+    SEC
+    BEQ FICskip1
+    RTS
+FICskip1:
+    LDA HL
+    ADC #$0b
+    STA HL
+    DEC DE
+    BNE FICloop
+    RTS
+
+ShotBlowingUp:
+    LDA #$78
+    STA HL
+    LDA #$20
+    STA HL+1
+    LDA (HL), Y
+    SEC
+    SBC #$01
+    STA (HL), Y
+    LDA (HL), Y
+    CMP #$03
+    BNE WaitShot
+    JSR EraseShot
+    LDA #$DC
+    STA $2079
+    LDA #$1c
+    STA $2080
+    LDA #$7c
+    STA HL
+    LDA #$20
+    STA HL+1
+    LDA (HL), Y
+    SEC
+    SBC #$02
+    STA (HL), Y
+    DEC HL
+    LDA (HL), Y
+    SEC
+    SBC #$02
+    STA (HL), Y
+    LDA #$06
+    STA $207d
+    JMP DrawShot
+
+WaitShot:
+    STA A
+    AND A
+    BEQ WSskip1
+    RTS
+WSskip1:
+    JMP EraseShot
+
+DrawShot:
+    LDA #$79
+    STA HL
+    LDA #$20
+    STA HL+1
+    JSR ReadDesc
+    JMP DrawSprCollision
+
+EraseShot:
+    LDA #$79
+    STA HL
+    LDA #$20
+    STA HL+1
+    JSR ReadDesc
+    JMP EraseShifted
+
+
+
+
+    .org $074b ; This address is pointed to in RAM, so don't change unless RAM is changed too
 GameObj4:
 ; Game object 4: Flying Saucer OR squiggly shot
     PLA
@@ -2378,10 +2692,11 @@ RemSout:
     .byte $00, $80, $00, $8e, $02, $FF, $05, $0C, $60, $1C, $20, $30, $10, $01, $00, $00
     .byte $00, $00, $00, $BB, $03, $00, $10, $90, $1C, $28, $30, $01, $04, $00, $FF, $FF
     .byte $00, $00, $02, $0f, $05, $00, $00, $00, $00, $00, $04, $EE, $1C, $00, $00, $03
-    .byte $00, $00, $00, $B6, $04, $00, $00, $01, $00, $1D, $04, $E2, $1C, $00, $00, $03
-    .byte $00, $00, $00, $82, $06, $00, $00, $01, $06, $1D, $04, $D0, $1C, $00, $00, $03
+    .byte $00, $00, $00, $7d, $05, $00, $00, $01, $00, $1D, $04, $E2, $1C, $00, $00, $03
+    .byte $00, $00, $00, $4b, $07, $00, $00, $01, $06, $1D, $04, $D0, $1C, $00, $00, $03
     .byte $FF, $00, $C0, $1C, $00, $00, $10, $21, $01, $00, $30, $00, $12, $00, $00, $00
     .org $1b70
+
 MesssageP1:
 ; "PLAY PLAYER<1>"
     .byte $0F, $0B, $00, $18, $26, $0F, $0B, $00, $18, $04, $11, $24, $1B, $25, $FC, $00
@@ -2450,12 +2765,47 @@ MessageAdv:
     .byte $00, $08, $49, $22, $14, $81, $42, $00
     .byte $42, $81, $14, $22, $49, $08, $00, $00
 
+    ; Alien shots
+    .org $1CD0
+SquiglyShot:
+    .byte $44, $aa, $10, $88, $54, $22, $10, $aa
+    .byte $44, $22, $54, $88
+
+AShotExplo:
+    .byte $4a, $15, $be, $3f, $5e, $25
+
+plungerShot:
+    .byte $04, $fc, $04, $10, $fc, $10, $20, $fc
+    .byte $20, $80, $fc, $80
+
+RollShot:
+    .byte $00, $fe, $00, $24, $fe, $12, $00, $fe
+    .byte $00, $48, $fe, $90
 
     .org $1cfa
 MessagePlayUY:
     .byte $0F, $0B, $00, $29    ; "PLAy" with an upside down 'Y' for splash screen
 
+    .byte $00, $00 ; Just some empty space
 
+ColFireTable:
+; This table decides which column a shot will fall from. The column number is read from the
+; table (1-11) and the pointer increases for the shot type. For instance, the "squiggly" shot
+; will fall from columns in this order: 0B, 01, 06, 03. If you play the game you'll see that
+; order.
+;
+; The "plunger" shot uses index 00-0F (inclusive)
+; The "squiggly" shot uses index 06-14 (inclusive)
+; The "rolling" shot targets the player
+    .byte $01, $07, $01, $01, $01, $04, $0B, $01
+    .byte $06, $03, $01, $01, $0B, $09, $02, $08
+    .byte $02, $0B, $04, $07, $0A
+;
+; This appears to be part of the column-firing table, but it is never used.
+; Perhaps this was originally intended for the "rolling" shot but then the
+; "rolling" was change to target the player specifically.
+    .byte $05, $02, $05, $04, $06, $07, $08, $0A
+    .byte $06, $0A, $03
 
 
     .org $1d20
